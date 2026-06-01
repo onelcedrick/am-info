@@ -24,6 +24,16 @@ def get_product(product_id: str, db: Session = Depends(get_db)):
             return p
     return None
 
+@router.get("/products/new-arrivals")
+def new_arrivals(db: Session = Depends(get_db)):
+    """Produits ajoutes recemment (7 derniers jours)"""
+    return service.get_new_arrivals(db)
+
+@router.get("/products/popular")
+def popular_products(db: Session = Depends(get_db)):
+    """Produits les plus commandes"""
+    return service.get_popular_products(db)
+
 @admin_router.get("/")
 def admin_list_products(db: Session = Depends(get_db)):
     return service.get_all_products(db)
@@ -39,7 +49,6 @@ async def admin_create_product(
     db: Session = Depends(get_db)
 ):
     image_url = None
-    
     if image and image.filename:
         ext = image.filename.split(".")[-1] if "." in image.filename else "jpg"
         filename = f"product_{uuid.uuid4().hex[:8]}.{ext}"
@@ -50,15 +59,29 @@ async def admin_create_product(
         image_url = f"http://localhost:8000/uploads/{filename}"
     
     data = {
-        "name": name,
-        "price": price,
-        "category": category,
-        "description": description,
-        "stock_quantity": stock_quantity,
+        "name": name, "price": price, "category": category,
+        "description": description, "stock_quantity": stock_quantity,
         "image_url": image_url
     }
     return service.create_product(db, data)
 
+@admin_router.put("/{product_id}")
+def admin_update_product(product_id: str, data: dict, db: Session = Depends(get_db)):
+    product = service.update_product(db, product_id, data)
+    if not product:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404)
+    return product
+
 @admin_router.patch("/{product_id}/visibility")
 def admin_toggle_visibility(product_id: str, db: Session = Depends(get_db)):
     return service.toggle_visibility(db, product_id)
+
+@admin_router.patch("/{product_id}/stock")
+def admin_update_stock(product_id: str, quantity: int, db: Session = Depends(get_db)):
+    return service.update_stock(db, product_id, quantity)
+
+@admin_router.delete("/{product_id}")
+def admin_delete_product(product_id: str, db: Session = Depends(get_db)):
+    service.delete_product(db, product_id)
+    return {"message": "Produit supprime"}

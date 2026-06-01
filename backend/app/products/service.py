@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from sqlalchemy.orm import Session
-from ..models import Product, Discount
+from sqlalchemy import func
+from ..models import Product, Discount, OrderItem, Order
 from datetime import datetime, timezone, timedelta
 
 MADAGASCAR_TZ = timezone(timedelta(hours=3))
@@ -12,6 +13,52 @@ def get_visible_products(db: Session):
     ).all()
     return [_apply_best_discount(p, db) for p in products]
 
+def get_new_arrivals(db: Session):
+    """Produits ajoutes dans les 14 derniers jours"""
+    limit_date = datetime.now(MADAGASCAR_TZ) - timedelta(days=14)
+    products = db.query(Product).filter(
+        Product.is_visible == True,
+        Product.stock_quantity > 0,
+        Product.created_at >= limit_date
+    ).order_by(Product.created_at.desc()).limit(8).all()
+    return [_apply_best_discount(p, db) for p in products]
+
+def get_popular_products(db: Session):
+    """Produits les plus commandes (basé sur OrderItem)"""
+    popular = db.query(
+        Product,
+        func.count(OrderItem.id).label('total_orders'),
+        func.sum(OrderItem.quantity).label('total_quantity')
+    ).join(OrderItem, Product.id == OrderItem.product_id).join(
+        Order, OrderItem.order_id == Order.id
+    ).filter(
+        Product.is_visible == True,
+        Product.stock_quantity > 0,
+        Order.status.in_(['paid', 'delivered', 'ready'])
+    ).group_by(Product.id).order_by(
+        func.sum(OrderItem.quantity).desc()
+    ).limit(8).all()
+    
+    result = []
+    for product, orders, qty in popular:
+        p = _apply_best_discount(product, db)
+        p['total_ordered'] = qty
+        p['order_count'] = orders
+        result.append(p)
+    
+    # Si pas assez de commandes, completer avec les produits recents
+    if len(result) < 4:
+        existing_ids = [p['id'] for p in result]
+        more = db.query(Product).filter(
+            Product.is_visible == True,
+            Product.stock_quantity > 0,
+            ~Product.id.in_(existing_ids)
+        ).order_by(Product.created_at.desc()).limit(8 - len(result)).all()
+        for p in more:
+            result.append(_apply_best_discount(p, db))
+    
+    return result
+
 def _apply_best_discount(product: Product, db: Session) -> dict:
     now = datetime.now(MADAGASCAR_TZ)
     discounts = db.query(Discount).filter(
@@ -20,8 +67,8 @@ def _apply_best_discount(product: Product, db: Session) -> dict:
         (Discount.end_date == None) | (Discount.end_date >= now)
     ).all()
     
-    best_discount = None
     best_price = float(product.price)
+    best_discount = None
     
     for d in discounts:
         applicable = False
@@ -51,7 +98,7 @@ def _apply_best_discount(product: Product, db: Session) -> dict:
     }
 
 def get_all_products(db: Session):
-    return db.query(Product).all()
+    return db.query(Product).order_by(Product.created_at.desc()).all()
 
 def create_product(db: Session, data: dict) -> Product:
     product = Product(**data)
@@ -60,9 +107,32 @@ def create_product(db: Session, data: dict) -> Product:
     db.refresh(product)
     return product
 
+def update_product(db: Session, product_id: str, data: dict):
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if product:
+        for key, value in data.items():
+            if hasattr(product, key) and value is not None:
+                setattr(product, key, value)
+        db.commit()
+        db.refresh(product)
+    return product
+
+def delete_product(db: Session, product_id: str):
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if product:
+        db.delete(product)
+        db.commit()
+
 def toggle_visibility(db: Session, product_id: str) -> Product:
     product = db.query(Product).filter(Product.id == product_id).first()
     if product:
         product.is_visible = not product.is_visible
+        db.commit()
+    return product
+
+def update_stock(db: Session, product_id: str, quantity: int):
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if product:
+        product.stock_quantity = quantity
         db.commit()
     return product
