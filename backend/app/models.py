@@ -1,8 +1,15 @@
+# -*- coding: utf-8 -*-
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from sqlalchemy import Column, String, Boolean, DateTime, Integer, Numeric, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from .database import Base
+
+# Fuseau horaire Madagascar (UTC+3)
+MADAGASCAR_TZ = timezone(timedelta(hours=3))
+
+def now_madagascar():
+    return datetime.now(MADAGASCAR_TZ)
 
 class User(Base):
     __tablename__ = "users"
@@ -14,8 +21,8 @@ class User(Base):
     google_id = Column(String(255), unique=True, nullable=True)
     avatar_url = Column(String(500), nullable=True)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=now_madagascar)
+    updated_at = Column(DateTime, default=now_madagascar, onupdate=now_madagascar)
 
 class Product(Base):
     __tablename__ = "products"
@@ -27,8 +34,8 @@ class Product(Base):
     image_url = Column(String(500), nullable=True)
     category = Column(String(100), nullable=True)
     is_visible = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=now_madagascar)
+    updated_at = Column(DateTime, default=now_madagascar, onupdate=now_madagascar)
 
 class Discount(Base):
     __tablename__ = "discounts"
@@ -41,7 +48,7 @@ class Discount(Base):
     is_active = Column(Boolean, default=True)
     start_date = Column(DateTime, nullable=True)
     end_date = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=now_madagascar)
 
 class Order(Base):
     __tablename__ = "orders"
@@ -50,8 +57,8 @@ class Order(Base):
     status = Column(String(30), default='pending')
     total_amount = Column(Numeric(12,2), nullable=True)
     discount_amount = Column(Numeric(12,2), default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=now_madagascar)
+    updated_at = Column(DateTime, default=now_madagascar, onupdate=now_madagascar)
     items = relationship("OrderItem", back_populates="order")
 
 class OrderItem(Base):
@@ -72,7 +79,7 @@ class CartItem(Base):
     user_id = Column(String, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     product_id = Column(String, ForeignKey('products.id'), nullable=False)
     quantity = Column(Integer, default=1)
-    added_at = Column(DateTime, default=datetime.utcnow)
+    added_at = Column(DateTime, default=now_madagascar)
 
 class Ticket(Base):
     __tablename__ = "tickets"
@@ -83,8 +90,8 @@ class Ticket(Base):
     description = Column(Text, nullable=True)
     status = Column(String(30), default='open')
     priority = Column(String(10), default='normal')
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=now_madagascar)
+    updated_at = Column(DateTime, default=now_madagascar, onupdate=now_madagascar)
     messages = relationship("TicketMessage", back_populates="ticket")
 
 class TicketMessage(Base):
@@ -95,7 +102,7 @@ class TicketMessage(Base):
     message = Column(Text, nullable=False)
     is_from_bot = Column(Boolean, default=False)
     attachment_url = Column(String(500), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=now_madagascar)
     ticket = relationship("Ticket", back_populates="messages")
 
 class Invoice(Base):
@@ -104,13 +111,13 @@ class Invoice(Base):
     order_id = Column(String, ForeignKey('orders.id'), unique=True, nullable=False)
     pdf_url = Column(String(500), nullable=True)
     sent_to_email = Column(String(255), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=now_madagascar)
 
 class Category(Base):
     __tablename__ = "categories"
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String(100), unique=True, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=now_madagascar)
 
 class Rating(Base):
     __tablename__ = "ratings"
@@ -118,6 +125,6 @@ class Rating(Base):
     ticket_id = Column(String, ForeignKey('tickets.id'), nullable=False)
     client_id = Column(String, ForeignKey('users.id'), nullable=False)
     technician_id = Column(String, ForeignKey('users.id'), nullable=True)
-    score = Column(Integer, nullable=False)  # 1 a 5
+    score = Column(Integer, nullable=False)
     comment = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=now_madagascar)

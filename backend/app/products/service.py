@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 from sqlalchemy.orm import Session
 from ..models import Product, Discount
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+
+MADAGASCAR_TZ = timezone(timedelta(hours=3))
 
 def get_visible_products(db: Session):
     products = db.query(Product).filter(
@@ -11,7 +13,7 @@ def get_visible_products(db: Session):
     return [_apply_best_discount(p, db) for p in products]
 
 def _apply_best_discount(product: Product, db: Session) -> dict:
-    now = datetime.utcnow()
+    now = datetime.now(MADAGASCAR_TZ)
     discounts = db.query(Discount).filter(
         Discount.is_active == True,
         (Discount.start_date == None) | (Discount.start_date <= now),
@@ -35,7 +37,6 @@ def _apply_best_discount(product: Product, db: Session) -> dict:
                 new_price = float(product.price) * (1 - float(d.value) / 100)
             else:
                 new_price = max(0, float(product.price) - float(d.value))
-            
             if new_price < best_price:
                 best_price = new_price
                 best_discount = d
@@ -65,17 +66,3 @@ def toggle_visibility(db: Session, product_id: str) -> Product:
         product.is_visible = not product.is_visible
         db.commit()
     return product
-
-def check_stock(db: Session, product_id: str, quantity: int) -> bool:
-    product = db.query(Product).filter(Product.id == product_id).first()
-    if not product:
-        return False
-    return product.stock_quantity >= quantity
-
-def decrease_stock(db: Session, product_id: str, quantity: int):
-    product = db.query(Product).filter(Product.id == product_id).first()
-    if product and product.stock_quantity >= quantity:
-        product.stock_quantity -= quantity
-        db.commit()
-        return True
-    return False

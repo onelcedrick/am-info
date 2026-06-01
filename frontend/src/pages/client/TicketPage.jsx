@@ -263,7 +263,7 @@ export default function TicketPage() {
                         {m.attachment_url ? (
                           <a href={m.attachment_url} target="_blank" rel="noopener noreferrer"><img src={m.attachment_url} alt="Piece" className="rounded-lg mb-2 max-w-full cursor-pointer hover:opacity-80" /></a>
                         ) : (<p className="text-sm whitespace-pre-wrap">{m.message}</p>)}
-                        <p className={`text-xs mt-1 ${String(m.sender_id) === String(userId) ? 'text-blue-200' : 'text-gray-400'}`}>{new Date(m.created_at).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})}</p>
+                        <p className={`text-xs mt-1 ${String(m.sender_id) === String(userId) ? 'text-blue-200' : 'text-gray-400'}`}>{new Date(m.created_at).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit', timeZone: 'Indian/Antananarivo'})}</p>
                       </div>
                     </div>
                   );
