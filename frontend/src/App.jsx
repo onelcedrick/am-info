@@ -1,3 +1,4 @@
+import AboutPage from "./pages/client/AboutPage";
 // -*- coding: utf-8 -*-
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
@@ -26,6 +27,7 @@ import InvoicePage from './pages/admin/InvoicePage';
 import TechnicianDashboard from './pages/technician/DashboardPage';
 import TicketListPage from './pages/technician/TicketListPage';
 import PartRequestsPage from './pages/technician/PartRequestsPage';
+import ClientsPage from './pages/admin/ClientsPage';
 
 function App() {
   return (
@@ -62,6 +64,7 @@ function App() {
               <Route path="discounts" element={<DiscountPage />} />
               <Route path="orders" element={<OrdersManagePage />} />
               <Route path="invoices" element={<InvoicePage />} />
+              <Route path="clients" element={<ClientsPage />} />
             </Route>
             <Route path="/technician" element={<ProtectedRoute allowedRoles={['technician']}><TechnicianLayout /></ProtectedRoute>}>
               <Route index element={<TechnicianDashboard />} />

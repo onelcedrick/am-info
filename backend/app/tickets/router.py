@@ -7,6 +7,7 @@ from ..schemas import TicketCreate, MessageCreate
 from . import service as ticket_service
 from ..emails import service as email_service
 from ..auth.service import decode_token
+from ..redis_client import cache
 import os
 import uuid
 
@@ -27,12 +28,10 @@ def get_current_user(authorization: str = Header(None)):
 @router.post("")
 def create_ticket(data: TicketCreate, payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     ticket = ticket_service.create_ticket(db, payload.get("sub"), data.subject, data.description, data.priority)
-    
-    # Envoyer email de confirmation
     user = db.query(User).filter(User.id == payload.get("sub")).first()
     if user:
         email_service.send_ticket_created(user.email, ticket.subject, str(ticket.id))
-    
+    cache.delete("dashboard:admin_stats")
     return ticket
 
 @router.get("")
@@ -79,16 +78,16 @@ def tech_tickets(payload: dict = Depends(get_current_user), search: str = Query(
 
 @technician_router.put("/{ticket_id}/assign")
 def assign_ticket(ticket_id: str, payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
-    return ticket_service.assign_technician(db, ticket_id, payload.get("sub"))
+    result = ticket_service.assign_technician(db, ticket_id, payload.get("sub"))
+    cache.delete("dashboard:admin_stats")
+    return result
 
 @technician_router.put("/{ticket_id}/status")
 def change_status(ticket_id: str, status: str, db: Session = Depends(get_db)):
     ticket = ticket_service.update_ticket_status(db, ticket_id, status)
-    
-    # Si resolu, envoyer email
     if status == 'resolved' and ticket:
         client = db.query(User).filter(User.id == ticket.client_id).first()
         if client:
             email_service.send_ticket_resolved(client.email, ticket.subject, str(ticket.id))
-    
+    cache.delete("dashboard:admin_stats")
     return ticket

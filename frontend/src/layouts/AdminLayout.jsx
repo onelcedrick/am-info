@@ -23,6 +23,7 @@ export default function AdminLayout() {
           <Link to="/admin/discounts" className="py-2.5 px-3 rounded-lg hover:bg-gray-800 transition text-sm">Promotions</Link>
           <Link to="/admin/orders" className="py-2.5 px-3 rounded-lg hover:bg-gray-800 transition text-sm">Commandes</Link>
           <Link to="/admin/invoices" className="py-2.5 px-3 rounded-lg hover:bg-gray-800 transition text-sm">Factures</Link>
+          <Link to="/admin/clients" className="py-2.5 px-3 rounded-lg hover:bg-gray-800 transition text-sm">Clients</Link>
         </nav>
         <div className="p-4 border-t border-gray-700">
           <p className="text-xs mb-2">{user?.full_name}</p>

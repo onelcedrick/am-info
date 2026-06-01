@@ -3,10 +3,14 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, timedelta
 from ..models import Order, Product, Ticket, User
+from ..redis_client import cache
 
 def get_dashboard_stats(db: Session):
+    cached = cache.get("dashboard:admin_stats")
+    if cached:
+        return cached
+    
     now = datetime.utcnow()
-    last_7_days = now - timedelta(days=7)
     last_30_days = now - timedelta(days=30)
     
     total_orders = db.query(Order).count()
@@ -42,17 +46,14 @@ def get_dashboard_stats(db: Session):
         Order.created_at >= last_30_days, Order.status.in_(['paid', 'delivered'])
     ).scalar() or 0
     
-    return {
-        "total_orders": total_orders,
-        "orders_by_status": orders_by_status,
-        "total_revenue": float(total_revenue),
-        "revenue_30d": float(revenue_30d),
-        "daily_orders": daily_orders,
-        "tickets_by_status": tickets_by_status,
-        "top_categories": top_categories,
-        "low_stock": low_stock,
-        "out_of_stock": out_of_stock,
-        "total_clients": total_clients,
-        "total_products": db.query(Product).count(),
-        "total_tickets": db.query(Ticket).count()
+    result = {
+        "total_orders": total_orders, "orders_by_status": orders_by_status,
+        "total_revenue": float(total_revenue), "revenue_30d": float(revenue_30d),
+        "daily_orders": daily_orders, "tickets_by_status": tickets_by_status,
+        "top_categories": top_categories, "low_stock": low_stock,
+        "out_of_stock": out_of_stock, "total_clients": total_clients,
+        "total_products": db.query(Product).count(), "total_tickets": db.query(Ticket).count()
     }
+    
+    cache.set("dashboard:admin_stats", result, ttl=120)
+    return result

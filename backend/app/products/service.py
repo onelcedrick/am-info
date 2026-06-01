@@ -2,32 +2,53 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from ..models import Product, Discount, OrderItem, Order
+from ..redis_client import cache
 from datetime import datetime, timezone, timedelta
 
 MADAGASCAR_TZ = timezone(timedelta(hours=3))
 
 def get_visible_products(db: Session):
+    # Essayer le cache d'abord
+    cached = cache.get("products:visible")
+    if cached:
+        return cached
+    
     products = db.query(Product).filter(
         Product.is_visible == True,
         Product.stock_quantity > 0
     ).all()
-    return [_apply_best_discount(p, db) for p in products]
+    result = [_apply_best_discount(p, db) for p in products]
+    
+    # Mettre en cache pour 5 minutes
+    cache.set("products:visible", result, ttl=300)
+    return result
+
+def invalidate_product_cache():
+    cache.clear_pattern("products:*")
 
 def get_new_arrivals(db: Session):
-    """Produits ajoutes dans les 14 derniers jours"""
+    cached = cache.get("products:new_arrivals")
+    if cached:
+        return cached
+    
     limit_date = datetime.now(MADAGASCAR_TZ) - timedelta(days=14)
     products = db.query(Product).filter(
         Product.is_visible == True,
         Product.stock_quantity > 0,
         Product.created_at >= limit_date
     ).order_by(Product.created_at.desc()).limit(8).all()
-    return [_apply_best_discount(p, db) for p in products]
+    
+    result = [_apply_best_discount(p, db) for p in products]
+    cache.set("products:new_arrivals", result, ttl=300)
+    return result
 
 def get_popular_products(db: Session):
-    """Produits les plus commandes (basé sur OrderItem)"""
+    cached = cache.get("products:popular")
+    if cached:
+        return cached
+    
     popular = db.query(
-        Product,
-        func.count(OrderItem.id).label('total_orders'),
+        Product, func.count(OrderItem.id).label('total_orders'),
         func.sum(OrderItem.quantity).label('total_quantity')
     ).join(OrderItem, Product.id == OrderItem.product_id).join(
         Order, OrderItem.order_id == Order.id
@@ -35,9 +56,7 @@ def get_popular_products(db: Session):
         Product.is_visible == True,
         Product.stock_quantity > 0,
         Order.status.in_(['paid', 'delivered', 'ready'])
-    ).group_by(Product.id).order_by(
-        func.sum(OrderItem.quantity).desc()
-    ).limit(8).all()
+    ).group_by(Product.id).order_by(func.sum(OrderItem.quantity).desc()).limit(8).all()
     
     result = []
     for product, orders, qty in popular:
@@ -46,17 +65,15 @@ def get_popular_products(db: Session):
         p['order_count'] = orders
         result.append(p)
     
-    # Si pas assez de commandes, completer avec les produits recents
     if len(result) < 4:
         existing_ids = [p['id'] for p in result]
         more = db.query(Product).filter(
-            Product.is_visible == True,
-            Product.stock_quantity > 0,
-            ~Product.id.in_(existing_ids)
+            Product.is_visible == True, Product.stock_quantity > 0, ~Product.id.in_(existing_ids)
         ).order_by(Product.created_at.desc()).limit(8 - len(result)).all()
         for p in more:
             result.append(_apply_best_discount(p, db))
     
+    cache.set("products:popular", result, ttl=600)
     return result
 
 def _apply_best_discount(product: Product, db: Session) -> dict:
@@ -105,6 +122,7 @@ def create_product(db: Session, data: dict) -> Product:
     db.add(product)
     db.commit()
     db.refresh(product)
+    invalidate_product_cache()
     return product
 
 def update_product(db: Session, product_id: str, data: dict):
@@ -115,6 +133,7 @@ def update_product(db: Session, product_id: str, data: dict):
                 setattr(product, key, value)
         db.commit()
         db.refresh(product)
+        invalidate_product_cache()
     return product
 
 def delete_product(db: Session, product_id: str):
@@ -122,12 +141,14 @@ def delete_product(db: Session, product_id: str):
     if product:
         db.delete(product)
         db.commit()
+        invalidate_product_cache()
 
 def toggle_visibility(db: Session, product_id: str) -> Product:
     product = db.query(Product).filter(Product.id == product_id).first()
     if product:
         product.is_visible = not product.is_visible
         db.commit()
+        invalidate_product_cache()
     return product
 
 def update_stock(db: Session, product_id: str, quantity: int):
@@ -135,4 +156,5 @@ def update_stock(db: Session, product_id: str, quantity: int):
     if product:
         product.stock_quantity = quantity
         db.commit()
+        invalidate_product_cache()
     return product
