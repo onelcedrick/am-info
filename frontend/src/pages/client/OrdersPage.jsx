@@ -1,29 +1,38 @@
+// -*- coding: utf-8 -*-
 import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import api from '../../api/axios';
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    console.log('OrdersPage mounted, fetching...');
-    api.get('/orders')
-      .then(res => {
-        console.log('Orders received:', res.data);
-        setOrders(res.data);
-      })
-      .catch(err => console.error('Orders error:', err))
-      .finally(() => setLoading(false));
+    loadOrders();
   }, []);
+
+  const loadOrders = () => {
+    api.get('/orders/').then(res => setOrders(res.data)).catch(console.error);
+  };
+
+  const cancelOrder = async (orderId) => {
+    if (!confirm('Voulez-vous vraiment annuler cette commande ?')) return;
+    try {
+      await api.delete(`/orders/${orderId}`);
+      toast.success('Commande annulee avec succes');
+      loadOrders();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Erreur lors de l\'annulation');
+    }
+  };
 
   const statusLabels = {
     pending: 'En attente',
     awaiting_payment: 'Paiement en boutique',
-    paid: 'Payée',
-    preparing: 'En préparation',
-    ready: 'Prête',
-    delivered: 'Livrée',
-    cancelled: 'Annulée'
+    paid: 'Payee',
+    preparing: 'En preparation',
+    ready: 'Prete',
+    delivered: 'Livree',
+    cancelled: 'Annulee'
   };
 
   const statusColors = {
@@ -36,35 +45,39 @@ export default function OrdersPage() {
     cancelled: 'bg-red-100 text-red-800'
   };
 
-  if (loading) {
-    return <div className="text-center py-10 text-lg">Chargement des commandes...</div>;
-  }
-
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-6">📋 Mes Commandes</h1>
+      <h1 className="text-2xl font-bold mb-6">Mes Commandes</h1>
       {orders.length === 0 ? (
-        <div className="bg-white rounded-xl shadow p-12 text-center text-gray-500">
-          Aucune commande
-        </div>
+        <div className="bg-white rounded-xl shadow p-12 text-center text-gray-500">Aucune commande</div>
       ) : (
         <div className="space-y-4">
           {orders.map(order => (
             <div key={order.id} className="bg-white rounded-xl shadow p-6">
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center mb-3">
                 <div>
-                  <span className="text-sm text-gray-500">#{order.id?.slice(0, 8)}</span>
-                  <span className="text-sm text-gray-400 ml-4">
-                    {new Date(order.created_at).toLocaleDateString('fr-FR')}
-                  </span>
+                  <span className="text-sm text-gray-500">Commande #{order.id.slice(0, 8)}</span>
+                  <span className="text-sm text-gray-400 ml-4">{new Date(order.created_at).toLocaleDateString('fr-FR')}</span>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-sm font-semibold ${statusColors[order.status] || 'bg-gray-100'}`}>
-                  {statusLabels[order.status] || order.status}
-                </span>
+                <div className="flex items-center gap-3">
+                  <span className={`px-3 py-1 rounded-full text-sm font-semibold ${statusColors[order.status]}`}>
+                    {statusLabels[order.status] || order.status}
+                  </span>
+                  {(order.status === 'pending' || order.status === 'awaiting_payment') && (
+                    <button
+                      onClick={() => cancelOrder(order.id)}
+                      className="text-red-500 hover:text-red-700 text-sm font-semibold hover:underline">
+                      Annuler
+                    </button>
+                  )}
+                </div>
               </div>
-              <p className="text-2xl font-bold text-blue-600 mt-2">
-                {order.total_amount?.toLocaleString()} Ar
-              </p>
+              <div className="flex justify-between items-center">
+                <span className="text-lg font-bold text-blue-600">{order.total_amount?.toLocaleString()} Ar</span>
+                {order.items && order.items.length > 0 && (
+                  <span className="text-sm text-gray-500">{order.items.length} produit(s)</span>
+                )}
+              </div>
             </div>
           ))}
         </div>

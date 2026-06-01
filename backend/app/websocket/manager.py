@@ -14,14 +14,27 @@ class ConnectionManager:
     async def send_to(self, user_id: str, data: dict):
         conn = self.connections.get(user_id)
         if conn:
-            await conn["ws"].send_json(data)
+            try:
+                await conn["ws"].send_json(data)
+                return True
+            except:
+                self.connections.pop(user_id, None)
+        return False
 
-    async def broadcast(self, data: dict):
-        for conn in self.connections.values():
-            await conn["ws"].send_json(data)
+    async def broadcast(self, data: dict, exclude: str = None):
+        for uid, conn in list(self.connections.items()):
+            if uid != exclude:
+                try:
+                    await conn["ws"].send_json(data)
+                except:
+                    self.connections.pop(uid, None)
 
-    def get_role(self, user_id: str):
-        conn = self.connections.get(user_id)
-        return conn["role"] if conn else None
+    async def broadcast_to_role(self, role: str, data: dict):
+        for uid, conn in list(self.connections.items()):
+            if conn["role"] == role:
+                try:
+                    await conn["ws"].send_json(data)
+                except:
+                    self.connections.pop(uid, None)
 
 manager = ConnectionManager()

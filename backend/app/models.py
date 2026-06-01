@@ -105,3 +105,19 @@ class Invoice(Base):
     pdf_url = Column(String(500), nullable=True)
     sent_to_email = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class Category(Base):
+    __tablename__ = "categories"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(100), unique=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class Rating(Base):
+    __tablename__ = "ratings"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    ticket_id = Column(String, ForeignKey('tickets.id'), nullable=False)
+    client_id = Column(String, ForeignKey('users.id'), nullable=False)
+    technician_id = Column(String, ForeignKey('users.id'), nullable=True)
+    score = Column(Integer, nullable=False)  # 1 a 5
+    comment = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)

@@ -27,10 +27,10 @@ export default function ProductListPage() {
       setTimeout(() => setMessage(''), 2000);
     } catch (err) {
       console.error(err);
-      setMessage('❌ Erreur lors de l\'ajout');
+      setMessage(' Erreur lors de l\'ajout');
       setTimeout(() => setMessage(''), 2000);
     }
-  };
+  }; 
 
   const categories = [...new Set(products.map(p => p.category).filter(Boolean))];
   

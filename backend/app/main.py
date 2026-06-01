@@ -9,6 +9,11 @@ from .cart.router import router as cart_router
 from .orders.router import router as orders_router, admin_router as orders_admin_router
 from .tickets.router import router as tickets_router, technician_router as tickets_tech_router
 from .discounts.router import router as discounts_router
+from .ml.router import router as chatbot_router
+from .invoices.router import router as invoices_router
+from .categories.router import router as categories_router, public_router as categories_public_router
+from .dashboard.router import router as dashboard_router
+from .ratings.router import router as ratings_router
 from .websocket.router import router as ws_router
 
 app = FastAPI(title="AM Info API", version="1.0")
@@ -27,6 +32,12 @@ app.include_router(orders_admin_router)
 app.include_router(tickets_router)
 app.include_router(tickets_tech_router)
 app.include_router(discounts_router)
+app.include_router(chatbot_router)
+app.include_router(invoices_router)
+app.include_router(categories_router)
+app.include_router(categories_public_router)
+app.include_router(dashboard_router)
+app.include_router(ratings_router)
 app.include_router(ws_router)
 
 @app.get("/")

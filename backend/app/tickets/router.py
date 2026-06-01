@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
-from fastapi import APIRouter, Depends, HTTPException, Header, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, Header, UploadFile, File, Query
 from sqlalchemy.orm import Session
 from ..database import get_db
+from ..models import User
 from ..schemas import TicketCreate, MessageCreate
 from . import service as ticket_service
+from ..emails import service as email_service
 from ..auth.service import decode_token
 import os
 import uuid
@@ -24,11 +26,18 @@ def get_current_user(authorization: str = Header(None)):
 
 @router.post("")
 def create_ticket(data: TicketCreate, payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
-    return ticket_service.create_ticket(db, payload.get("sub"), data.subject, data.description, data.priority)
+    ticket = ticket_service.create_ticket(db, payload.get("sub"), data.subject, data.description, data.priority)
+    
+    # Envoyer email de confirmation
+    user = db.query(User).filter(User.id == payload.get("sub")).first()
+    if user:
+        email_service.send_ticket_created(user.email, ticket.subject, str(ticket.id))
+    
+    return ticket
 
 @router.get("")
-def my_tickets(payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
-    return ticket_service.get_client_tickets(db, payload.get("sub"))
+def my_tickets(payload: dict = Depends(get_current_user), search: str = Query(None), status: str = Query(None), priority: str = Query(None), db: Session = Depends(get_db)):
+    return ticket_service.search_tickets(db, search=search, status=status, priority=priority, role='client', user_id=payload.get("sub"))
 
 @router.get("/{ticket_id}")
 def ticket_detail(ticket_id: str, db: Session = Depends(get_db)):
@@ -39,39 +48,34 @@ def send_message(ticket_id: str, data: MessageCreate, payload: dict = Depends(ge
     return ticket_service.add_message(db, ticket_id, payload.get("sub"), data.message)
 
 @router.post("/{ticket_id}/upload")
-async def upload_photo(
-    ticket_id: str,
-    file: UploadFile = File(...),
-    payload: dict = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    # Vérifier le type de fichier
+async def upload_photo(ticket_id: str, file: UploadFile = File(...), payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     if not file.content_type or not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Seules les images sont acceptées")
-    
-    # Générer un nom unique
+        raise HTTPException(status_code=400, detail="Seules les images sont acceptees")
     ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
     filename = f"{uuid.uuid4()}.{ext}"
     filepath = os.path.join(UPLOAD_DIR, filename)
-    
-    # Sauvegarder le fichier
     content = await file.read()
     with open(filepath, "wb") as f:
         f.write(content)
-    
-    # Créer un message avec la photo
     image_url = f"http://localhost:8000/uploads/{filename}"
-    msg = ticket_service.add_message(
-        db, ticket_id, payload.get("sub"),
-        "📸 Photo de la pièce",
-        attachment_url=image_url
-    )
-    
-    return {"message": "Photo envoyée", "image_url": image_url, "message_id": msg.id}
+    msg = ticket_service.add_message(db, ticket_id, payload.get("sub"), "Photo de la piece", attachment_url=image_url)
+    return {"message": "Photo envoyee", "image_url": image_url, "message_id": msg.id}
+
+@router.delete("/{ticket_id}/messages")
+def clear_messages(ticket_id: str, payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    user_id = payload.get("sub")
+    role = payload.get("role")
+    ticket = ticket_service.get_ticket_detail(db, ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404)
+    if ticket.client_id != user_id and role != "admin":
+        raise HTTPException(status_code=403)
+    ticket_service.clear_messages(db, ticket_id)
+    return {"message": "Historique supprime"}
 
 @technician_router.get("")
-def tech_tickets(payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
-    return ticket_service.get_technician_tickets(db, payload.get("sub"))
+def tech_tickets(payload: dict = Depends(get_current_user), search: str = Query(None), status: str = Query(None), priority: str = Query(None), db: Session = Depends(get_db)):
+    return ticket_service.search_tickets(db, search=search, status=status, priority=priority, role='technician', user_id=payload.get("sub"))
 
 @technician_router.put("/{ticket_id}/assign")
 def assign_ticket(ticket_id: str, payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -79,4 +83,12 @@ def assign_ticket(ticket_id: str, payload: dict = Depends(get_current_user), db:
 
 @technician_router.put("/{ticket_id}/status")
 def change_status(ticket_id: str, status: str, db: Session = Depends(get_db)):
-    return ticket_service.update_ticket_status(db, ticket_id, status)
+    ticket = ticket_service.update_ticket_status(db, ticket_id, status)
+    
+    # Si resolu, envoyer email
+    if status == 'resolved' and ticket:
+        client = db.query(User).filter(User.id == ticket.client_id).first()
+        if client:
+            email_service.send_ticket_resolved(client.email, ticket.subject, str(ticket.id))
+    
+    return ticket

@@ -1,10 +1,10 @@
+# -*- coding: utf-8 -*-
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
 
-# User
 class UserCreate(BaseModel):
     full_name: str
     email: str
@@ -22,7 +22,6 @@ class UserResponse(BaseModel):
     is_active: bool
     class Config: from_attributes = True
 
-# Product
 class ProductCreate(BaseModel):
     name: str
     description: Optional[str] = None
@@ -44,13 +43,12 @@ class ProductResponse(BaseModel):
     final_price: Optional[Decimal] = None
     class Config: from_attributes = True
 
-# Discount
 class DiscountCreate(BaseModel):
     name: str
     discount_type: str
     value: Decimal
     target_type: str
-    target_id: Optional[UUID] = None
+    target_id: Optional[str] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
 
@@ -60,25 +58,23 @@ class DiscountResponse(BaseModel):
     discount_type: str
     value: Decimal
     target_type: str
-    target_id: Optional[UUID]
+    target_id: Optional[str]
     is_active: bool
     class Config: from_attributes = True
 
-# Cart
 class CartItemCreate(BaseModel):
-    product_id: UUID
+    product_id: str
     quantity: int = 1
 
 class CartItemResponse(BaseModel):
     id: UUID
-    product_id: UUID
+    product_id: str
     product_name: str
     quantity: int
     unit_price: Decimal
     total: Decimal
     class Config: from_attributes = True
 
-# Order
 class OrderResponse(BaseModel):
     id: UUID
     status: str
@@ -88,7 +84,6 @@ class OrderResponse(BaseModel):
     items: list = []
     class Config: from_attributes = True
 
-# Ticket
 class TicketCreate(BaseModel):
     subject: str
     description: str
@@ -105,7 +100,6 @@ class TicketResponse(BaseModel):
 class MessageCreate(BaseModel):
     message: str
 
-# Token
 class Token(BaseModel):
     token: str
     user: UserResponse

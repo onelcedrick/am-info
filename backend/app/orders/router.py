@@ -2,7 +2,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
 from ..database import get_db
+from ..models import User
 from . import service as order_service
+from ..emails import service as email_service
 from ..auth.service import decode_token
 
 router = APIRouter(prefix="/orders", tags=["orders"])
@@ -10,7 +12,7 @@ admin_router = APIRouter(prefix="/admin/orders", tags=["admin-orders"])
 
 def get_current_user(authorization: str = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Non authentifié")
+        raise HTTPException(status_code=401, detail="Non authentifie")
     payload = decode_token(authorization.split(" ")[1])
     if not payload:
         raise HTTPException(status_code=401, detail="Token invalide")
@@ -18,14 +20,35 @@ def get_current_user(authorization: str = Header(None)):
 
 @router.post("")
 def create_order(payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
-    order = order_service.create_order(db, payload.get("sub"))
-    if not order:
-        raise HTTPException(status_code=400, detail="Panier vide")
-    return {"message": "Commande créée", "order_id": order.id}
+    order, error = order_service.create_order(db, payload.get("sub"))
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    
+    # Envoyer email de confirmation
+    user = db.query(User).filter(User.id == payload.get("sub")).first()
+    if user:
+        items = [{"name": item.product_name, "quantity": item.quantity, "total": float(item.unit_price) * item.quantity} for item in order.items]
+        email_service.send_order_confirmation(user.email, str(order.id), float(order.total_amount), items)
+    
+    return {"message": "Commande creee", "order_id": order.id}
 
 @router.get("")
 def my_orders(payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     return order_service.get_user_orders(db, payload.get("sub"))
+
+@router.get("/{order_id}")
+def order_detail(order_id: str, db: Session = Depends(get_db)):
+    order = order_service.get_order_detail(db, order_id)
+    if not order:
+        raise HTTPException(status_code=404)
+    return order
+
+@router.delete("/{order_id}")
+def cancel_order(order_id: str, payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    success, error = order_service.cancel_order(db, order_id, payload.get("sub"))
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return {"message": "Commande annulee"}
 
 @admin_router.get("")
 def all_orders(db: Session = Depends(get_db)):

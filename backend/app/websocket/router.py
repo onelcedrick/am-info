@@ -21,64 +21,31 @@ async def ws_endpoint(websocket: WebSocket, token: str = Query(...)):
             action = data.get("action", "message")
             recipient_id = data.get("recipient_id")
             
-            if action == "typing":
-                if recipient_id:
-                    await manager.send_to(recipient_id, {
-                        "type": "typing",
-                        "from": user_id,
-                        "ticket_id": data.get("ticket_id"),
-                        "is_typing": data.get("is_typing", True)
-                    })
+            # Si appel sans destinataire, envoyer a tous les techniciens
+            if action == "call_start" and not recipient_id:
+                if role == "client":
+                    await manager.broadcast_to_role("technician", data)
+                else:
+                    await manager.broadcast(data, exclude=user_id)
+            elif recipient_id:
+                await manager.send_to(recipient_id, data)
             
-            elif action == "call_start":
-                # Appel vocal/vidéo
-                if recipient_id:
-                    await manager.send_to(recipient_id, {
-                        "type": "incoming_call",
-                        "from": user_id,
-                        "ticket_id": data.get("ticket_id"),
-                        "call_type": data.get("call_type", "video"),
-                        "offer": data.get("offer")
-                    })
-            
-            elif action == "call_answer":
-                if recipient_id:
-                    await manager.send_to(recipient_id, {
-                        "type": "call_answered",
-                        "from": user_id,
-                        "answer": data.get("answer")
-                    })
-            
-            elif action == "ice_candidate":
-                if recipient_id:
-                    await manager.send_to(recipient_id, {
-                        "type": "ice_candidate",
-                        "from": user_id,
-                        "candidate": data.get("candidate")
-                    })
-            
-            elif action == "call_end":
-                if recipient_id:
-                    await manager.send_to(recipient_id, {
-                        "type": "call_ended",
-                        "from": user_id
-                    })
-            
-            elif action == "call_reject":
-                if recipient_id:
-                    await manager.send_to(recipient_id, {
-                        "type": "call_rejected",
-                        "from": user_id
-                    })
-            
-            elif action == "message":
+            # Messages normaux
+            if action == "message":
                 await manager.broadcast({
                     "type": "new_message",
                     "ticket_id": data.get("ticket_id"),
                     "from": user_id
+                }, exclude=user_id)
+            
+            if action == "typing" and recipient_id:
+                await manager.send_to(recipient_id, {
+                    "type": "typing", "from": user_id,
+                    "ticket_id": data.get("ticket_id"),
+                    "is_typing": data.get("is_typing", True)
                 })
-                
+                    
     except WebSocketDisconnect:
         manager.disconnect(user_id)
-    except Exception:
+    except Exception as e:
         manager.disconnect(user_id)

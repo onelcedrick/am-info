@@ -4,7 +4,10 @@ from ..models import Product, Discount
 from datetime import datetime
 
 def get_visible_products(db: Session):
-    products = db.query(Product).filter(Product.is_visible == True).all()
+    products = db.query(Product).filter(
+        Product.is_visible == True,
+        Product.stock_quantity > 0
+    ).all()
     return [_apply_best_discount(p, db) for p in products]
 
 def _apply_best_discount(product: Product, db: Session) -> dict:
@@ -62,3 +65,17 @@ def toggle_visibility(db: Session, product_id: str) -> Product:
         product.is_visible = not product.is_visible
         db.commit()
     return product
+
+def check_stock(db: Session, product_id: str, quantity: int) -> bool:
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        return False
+    return product.stock_quantity >= quantity
+
+def decrease_stock(db: Session, product_id: str, quantity: int):
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if product and product.stock_quantity >= quantity:
+        product.stock_quantity -= quantity
+        db.commit()
+        return True
+    return False

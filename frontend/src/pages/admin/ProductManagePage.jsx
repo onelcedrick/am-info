@@ -4,27 +4,29 @@ import api from '../../api/axios';
 
 export default function ProductManagePage() {
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [category, setCategory] = useState('');
+  const [newCategory, setNewCategory] = useState('');
   const [description, setDescription] = useState('');
   const [stock, setStock] = useState('0');
+  const [isCable, setIsCable] = useState(false);
+  const [cableLength, setCableLength] = useState('1');
   const [imageFile, setImageFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [editCatId, setEditCatId] = useState(null);
+  const [editCatName, setEditCatName] = useState('');
   const fileInputRef = useRef(null);
 
-  useEffect(() => { loadProducts(); }, []);
+  useEffect(() => { loadProducts(); loadCategories(); }, []);
 
-  const loadProducts = () => {
-    api.get('/admin/products/').then(r => setProducts(r.data));
-  };
+  const loadProducts = () => api.get('/admin/products/').then(r => setProducts(r.data));
+  const loadCategories = () => api.get('/admin/categories/').then(r => setCategories(r.data));
 
-  const toggleVisibility = async (id) => {
-    await api.patch(`/admin/products/${id}/visibility`);
-    loadProducts();
-  };
+  const toggleVisibility = async (id) => { await api.patch(`/admin/products/${id}/visibility`); loadProducts(); };
 
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
@@ -38,30 +40,54 @@ export default function ProductManagePage() {
   const addProduct = async (e) => {
     e.preventDefault();
     setUploading(true);
-    
     const formData = new FormData();
-    formData.append('name', name);
-    formData.append('price', price);
-    formData.append('category', category);
-    formData.append('description', description);
-    formData.append('stock_quantity', stock);
-    if (imageFile) {
-      formData.append('image', imageFile);
+    
+    let productName = name;
+    let productDesc = description;
+    let productPrice = parseFloat(price);
+    
+    // Si cable ethernet, ajuster le prix selon la longueur
+    if (isCable) {
+      const length = parseFloat(cableLength) || 1;
+      productName = `${name} - ${length}m`;
+      productDesc = `${description}\nLongueur: ${length} metres`;
+      productPrice = productPrice * length;
     }
+    
+    formData.append('name', productName);
+    formData.append('price', productPrice);
+    formData.append('category', category);
+    formData.append('description', productDesc);
+    formData.append('stock_quantity', stock);
+    if (imageFile) formData.append('image', imageFile);
     
     try {
-      await api.post('/admin/products/', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      await api.post('/admin/products/', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       setName(''); setPrice(''); setCategory(''); setDescription(''); setStock('0');
+      setCableLength('1'); setIsCable(false);
       setImageFile(null); setPreview(null); setShowForm(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
       loadProducts();
-    } catch (err) {
-      alert('Erreur lors de l\'ajout du produit');
-    } finally {
-      setUploading(false);
-    }
+    } catch (err) { alert('Erreur'); }
+    finally { setUploading(false); }
+  };
+
+  const addCategory = async () => {
+    if (!newCategory.trim()) return;
+    await api.post('/admin/categories/', { name: newCategory });
+    setNewCategory('');
+    loadCategories();
+  };
+
+  const updateCategory = async (id) => {
+    await api.put(`/admin/categories/${id}`, { name: editCatName });
+    setEditCatId(null);
+    loadCategories();
+  };
+
+  const deleteCategory = async (id) => {
+    if (!confirm('Supprimer cette categorie ?')) return;
+    await api.delete(`/admin/categories/${id}`);
+    loadCategories();
   };
 
   return (
@@ -78,19 +104,49 @@ export default function ProductManagePage() {
         <form onSubmit={addProduct} className="bg-white rounded-xl shadow p-6 mb-4">
           <div className="grid grid-cols-3 gap-4">
             <div className="col-span-2 space-y-3">
-              <input placeholder="Nom du produit" value={name} onChange={e => setName(e.target.value)} required
-                className="w-full px-4 py-2 border rounded-lg" />
+              <div className="flex items-center gap-2">
+                <input placeholder="Nom du produit" value={name} onChange={e => setName(e.target.value)} required
+                  className="flex-1 px-4 py-2 border rounded-lg" />
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" checked={isCable} onChange={e => setIsCable(e.target.checked)} />
+                  Cable (prix au metre)
+                </label>
+              </div>
+              
+              {isCable && (
+                <div className="flex items-center gap-2 bg-yellow-50 p-3 rounded-lg">
+                  <span className="text-sm text-yellow-700">Longueur:</span>
+                  <input type="number" value={cableLength} onChange={e => setCableLength(e.target.value)}
+                    min="0.5" step="0.5" className="w-20 px-3 py-1 border rounded" />
+                  <span className="text-sm text-yellow-700">metres</span>
+                  <span className="text-sm text-yellow-600 ml-auto">
+                    Prix total: {(parseFloat(price) * parseFloat(cableLength || 1)).toLocaleString()} Ar
+                  </span>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <input placeholder="Prix (Ar)" type="number" value={price} onChange={e => setPrice(e.target.value)} required
                   className="px-4 py-2 border rounded-lg" />
                 <input placeholder="Stock" type="number" value={stock} onChange={e => setStock(e.target.value)}
                   className="px-4 py-2 border rounded-lg" />
               </div>
-              <input placeholder="Categorie" value={category} onChange={e => setCategory(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg" />
+
+              {/* Categorie avec select + ajout */}
+              <div className="flex gap-2">
+                <select value={category} onChange={e => setCategory(e.target.value)}
+                  className="flex-1 px-4 py-2 border rounded-lg">
+                  <option value="">Choisir une categorie</option>
+                  {categories.map(c => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
               <textarea placeholder="Description" value={description} onChange={e => setDescription(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg" rows={3} />
+                className="w-full px-4 py-2 border rounded-lg" rows={2} />
             </div>
+
             <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-4">
               {preview ? (
                 <div className="text-center">
@@ -103,14 +159,12 @@ export default function ProductManagePage() {
                   <svg className="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <p className="text-sm">Photo du produit</p>
+                  <p className="text-sm">Photo</p>
                 </div>
               )}
-              <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileSelect}
-                className="hidden" id="product-image" />
-              <label htmlFor="product-image"
-                className="mt-2 bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg text-sm cursor-pointer transition">
-                Choisir une image
+              <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileSelect} className="hidden" id="product-image" />
+              <label htmlFor="product-image" className="mt-2 bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg text-sm cursor-pointer transition">
+                Choisir image
               </label>
             </div>
           </div>
@@ -120,13 +174,44 @@ export default function ProductManagePage() {
               {uploading ? 'Enregistrement...' : 'Enregistrer'}
             </button>
             <button type="button" onClick={() => setShowForm(false)}
-              className="bg-gray-300 px-6 py-2 rounded-lg text-sm hover:bg-gray-400 transition">
-              Annuler
-            </button>
+              className="bg-gray-300 px-6 py-2 rounded-lg text-sm hover:bg-gray-400 transition">Annuler</button>
           </div>
         </form>
       )}
 
+      {/* Gestion des categories */}
+      <div className="bg-white rounded-xl shadow p-4 mb-4">
+        <h3 className="font-bold text-sm mb-3">Categories</h3>
+        <div className="flex gap-2 mb-3">
+          <input placeholder="Nouvelle categorie" value={newCategory} onChange={e => setNewCategory(e.target.value)}
+            className="flex-1 px-3 py-2 border rounded-lg text-sm" />
+          <button onClick={addCategory}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">Ajouter</button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {categories.map(c => (
+            <div key={c.id} className="flex items-center gap-1 bg-gray-100 rounded-full px-3 py-1">
+              {editCatId === c.id ? (
+                <>
+                  <input value={editCatName} onChange={e => setEditCatName(e.target.value)}
+                    className="w-24 px-2 py-0.5 text-xs border rounded" />
+                  <button onClick={() => updateCategory(c.id)} className="text-green-600 text-xs">OK</button>
+                </>
+              ) : (
+                <>
+                  <span className="text-sm">{c.name}</span>
+                  <button onClick={() => { setEditCatId(c.id); setEditCatName(c.name); }}
+                    className="text-blue-500 text-xs ml-1">Modifier</button>
+                  <button onClick={() => deleteCategory(c.id)}
+                    className="text-red-500 text-xs ml-1">&times;</button>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Tableau produits */}
       <div className="flex-1 bg-white rounded-xl shadow overflow-hidden flex flex-col">
         <div className="flex-1 overflow-auto">
           <table className="w-full text-sm">
@@ -161,9 +246,7 @@ export default function ProductManagePage() {
                   <td className="p-3 text-center">
                     <button onClick={() => toggleVisibility(p.id)}
                       className={`px-3 py-1 rounded-full text-xs font-semibold transition ${
-                        p.is_visible 
-                          ? 'bg-green-100 text-green-800 hover:bg-green-200' 
-                          : 'bg-red-100 text-red-800 hover:bg-red-200'
+                        p.is_visible ? 'bg-green-100 text-green-800 hover:bg-green-200' : 'bg-red-100 text-red-800 hover:bg-red-200'
                       }`}>
                       {p.is_visible ? 'Visible' : 'Masque'}
                     </button>

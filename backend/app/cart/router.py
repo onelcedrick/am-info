@@ -10,7 +10,7 @@ router = APIRouter(prefix="/cart", tags=["cart"])
 
 def get_current_user_id(authorization: str = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Non authentifié")
+        raise HTTPException(status_code=401, detail="Non authentifie")
     token = authorization.split(" ")[1]
     payload = decode_token(token)
     if not payload:
@@ -25,12 +25,16 @@ def get_cart(user_id: str = Depends(get_current_user_id), db: Session = Depends(
 
 @router.post("/items")
 def add_item(data: CartItemCreate, user_id: str = Depends(get_current_user_id), db: Session = Depends(get_db)):
-    cart_service.add_to_cart(db, user_id, str(data.product_id), data.quantity)
+    item, error = cart_service.add_to_cart(db, user_id, str(data.product_id), data.quantity)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
     return get_cart(user_id=user_id, db=db)
 
 @router.put("/items/{item_id}")
 def update_item(item_id: str, quantity: int, user_id: str = Depends(get_current_user_id), db: Session = Depends(get_db)):
-    cart_service.update_quantity(db, item_id, quantity)
+    item, error = cart_service.update_quantity(db, item_id, quantity)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
     return get_cart(user_id=user_id, db=db)
 
 @router.delete("/items/{item_id}")
