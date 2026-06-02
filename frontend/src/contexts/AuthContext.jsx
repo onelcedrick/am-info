@@ -1,105 +1,82 @@
-// import { createContext, useState, useEffect } from 'react';
-// import { getMe } from '../api/auth';
-
-// export const AuthContext = createContext();
-
-// export const AuthProvider = ({ children }) => {
-//   const [user, setUser] = useState(null);
-//   const [loading, setLoading] = useState(true);
-
-//   useEffect(() => {
-//     const token = localStorage.getItem('token');
-//     if (token) {
-//       getMe()
-//         .then((res) => setUser(res.data))
-//         .catch(() => localStorage.removeItem('token'))
-//         .finally(() => setLoading(false));
-//     } else {
-//       setLoading(false);
-//     }
-//   }, []);
-
-//   const login = (userData, token) => {
-//     localStorage.setItem('token', token);
-//     setUser(userData);
-//   };
-
-//   const logout = () => {
-//     localStorage.removeItem('token');
-//     setUser(null);
-//   };
-
-//   const isAuthenticated = !!user;
-
-//   return (
-//     <AuthContext.Provider value={{ user, login, logout, isAuthenticated, loading }}>
-//       {children}
-//     </AuthContext.Provider>
-//   );
-// };
-
-
-
-
-
+// -*- coding: utf-8 -*-
 import { createContext, useState, useEffect } from 'react';
-import { getMe } from '../api/auth';
+import api from '../api/axios';
 
 export const AuthContext = createContext();
-
-// Mode développement : utilisateurs simulés
-const DEV_USERS = {
-  client: { id: 1, email: 'client@aminfo.mg', full_name: 'Jean Client', role: 'client' },
-  admin: { id: 2, email: 'admin@aminfo.mg', full_name: 'Admin AM Info', role: 'admin' },
-  technician: { id: 3, email: 'tech@aminfo.mg', full_name: 'Tech AM Info', role: 'technician' },
-};
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const devRole = localStorage.getItem('dev_role');
+    checkAuth();
     
-    if (devRole && DEV_USERS[devRole]) {
-      // Mode développement
-      setUser(DEV_USERS[devRole]);
-      setLoading(false);
-    } else if (token) {
-      // Mode production (backend)
-      getMe()
-        .then((res) => setUser(res.data))
-        .catch(() => localStorage.removeItem('token'))
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkAuth();
+      }
+    };
+    
+    window.addEventListener('popstate', checkAuth);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      window.removeEventListener('popstate', checkAuth);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
+
+  const checkAuth = () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+    
+    api.get('/auth/me')
+      .then(res => {
+        setUser(res.data);
+        setLoading(false);
+      })
+      .catch(() => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setUser(null);
+        setLoading(false);
+      });
+  };
 
   const login = (userData, token) => {
     localStorage.setItem('token', token);
-    localStorage.removeItem('dev_role'); // enlever mode dev
+    localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
   };
 
-  const devLogin = (role) => {
-    localStorage.removeItem('token');
-    localStorage.setItem('dev_role', role);
-    setUser(DEV_USERS[role]);
-  };
-
   const logout = () => {
+    // Nettoyer le stockage
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
     localStorage.removeItem('dev_role');
     setUser(null);
+    
+    // Vider l'historique pour empecher le retour arriere
+    window.location.replace('/login');
   };
 
   const isAuthenticated = !!user;
 
   return (
-    <AuthContext.Provider value={{ user, login, devLogin, logout, isAuthenticated, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, isAuthenticated, loading }}>
       {children}
     </AuthContext.Provider>
   );
 };
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuth doit être utilisé dans un AuthProvider');
+  return context;
+};
+
+import { useContext } from 'react';

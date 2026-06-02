@@ -73,3 +73,20 @@ async def upload_avatar(
     user.avatar_url = f"http://localhost:8000/uploads/{filename}"
     db.commit()
     return {"avatar_url": user.avatar_url}
+
+@router.delete("/account")
+def delete_account(payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == payload.get("sub")).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+    
+    # Supprimer les donnees liees
+    db.query(CartItem).filter(CartItem.user_id == user.id).delete()
+    db.query(Order).filter(Order.user_id == user.id).delete()
+    db.query(Ticket).filter(Ticket.client_id == user.id).delete()
+    db.query(Wishlist).filter(Wishlist.user_id == user.id).delete()
+    db.query(Rating).filter(Rating.client_id == user.id).delete()
+    
+    db.delete(user)
+    db.commit()
+    return {"message": "Compte supprime definitivement"}

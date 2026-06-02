@@ -1,8 +1,8 @@
-import AboutPage from "./pages/client/AboutPage";
 // -*- coding: utf-8 -*-
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import ClientLayout from './layouts/ClientLayout';
@@ -27,57 +27,96 @@ import InvoicePage from './pages/admin/InvoicePage';
 import TechnicianDashboard from './pages/technician/DashboardPage';
 import TicketListPage from './pages/technician/TicketListPage';
 import PartRequestsPage from './pages/technician/PartRequestsPage';
-import ClientsPage from './pages/admin/ClientsPage';
-import PaymentPage from './pages/client/PaymentPage';
-import TransactionsPage from './pages/admin/TransactionsPage';
+
+// Composant qui surveille la navigation et bloque les acces non autorises
+function NavigationGuard() {
+  const { isAuthenticated } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const protectedPaths = ['/client', '/admin', '/technician'];
+    const isProtectedPath = protectedPaths.some(path => location.pathname.startsWith(path));
+    
+    // Si on est sur une page protegee sans token, rediriger
+    if (isProtectedPath && !token && !isAuthenticated) {
+      navigate('/login', { replace: true });
+    }
+    
+    // Bloquer le retour arriere vers des pages protegees apres deconnexion
+    const handlePopState = () => {
+      const currentToken = localStorage.getItem('token');
+      if (isProtectedPath && !currentToken) {
+        // Empecher le retour et rediriger
+        window.history.pushState(null, '', '/login');
+        navigate('/login', { replace: true });
+      }
+    };
+    
+    // Pousser un etat pour pouvoir intercepter le retour
+    if (isProtectedPath) {
+      window.history.pushState(null, '', location.pathname);
+    }
+    
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [location.pathname, isAuthenticated, navigate]);
+
+  return null;
+}
+
+function AppRoutes() {
+  return (
+    <BrowserRouter>
+      <NavigationGuard />
+      <Toaster position="top-right" toastOptions={{
+        duration: 3000,
+        style: { background: '#1a73e8', color: '#fff', borderRadius: '12px', padding: '12px 16px', fontSize: '14px' }
+      }} />
+      <Routes>
+        <Route path="/" element={<ClientLayout />}>
+          <Route index element={<HomePage />} />
+          <Route path="products" element={<ProductListPage />} />
+          <Route path="products/:id" element={<ProductDetailPage />} />
+          <Route path="map" element={<MapPage />} />
+        </Route>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/auth/google/callback" element={<GoogleCallback />} />
+        <Route path="/client" element={<ProtectedRoute allowedRoles={['client']}><ClientLayout /></ProtectedRoute>}>
+          <Route index element={<HomePage />} />
+          <Route path="products" element={<ProductListPage />} />
+          <Route path="products/:id" element={<ProductDetailPage />} />
+          <Route path="cart" element={<CartPage />} />
+          <Route path="orders" element={<OrdersPage />} />
+          <Route path="tickets" element={<TicketPage />} />
+          <Route path="map" element={<MapPage />} />
+          <Route path="profile" element={<ProfilePage />} />
+        </Route>
+        <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout /></ProtectedRoute>}>
+          <Route index element={<AdminDashboard />} />
+          <Route path="products" element={<ProductManagePage />} />
+          <Route path="discounts" element={<DiscountPage />} />
+          <Route path="orders" element={<OrdersManagePage />} />
+          <Route path="invoices" element={<InvoicePage />} />
+        </Route>
+        <Route path="/technician" element={<ProtectedRoute allowedRoles={['technician']}><TechnicianLayout /></ProtectedRoute>}>
+          <Route index element={<TechnicianDashboard />} />
+          <Route path="tickets" element={<TicketListPage />} />
+          <Route path="parts" element={<PartRequestsPage />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
 
 function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <BrowserRouter>
-          <Toaster position="top-right" toastOptions={{
-            duration: 3000,
-            style: { background: '#1a73e8', color: '#fff', borderRadius: '12px', padding: '12px 16px', fontSize: '14px' }
-          }} />
-          <Routes>
-            <Route path="/" element={<ClientLayout />}>
-              <Route index element={<HomePage />} />
-              <Route path="products" element={<ProductListPage />} />
-              <Route path="products/:id" element={<ProductDetailPage />} />
-              <Route path="map" element={<MapPage />} />
-            </Route>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/auth/google/callback" element={<GoogleCallback />} />
-            <Route path="/client" element={<ProtectedRoute allowedRoles={['client']}><ClientLayout /></ProtectedRoute>}>
-              <Route index element={<HomePage />} />
-              <Route path="products" element={<ProductListPage />} />
-              <Route path="products/:id" element={<ProductDetailPage />} />
-              <Route path="cart" element={<CartPage />} />
-              <Route path="orders" element={<OrdersPage />} />
-              <Route path="tickets" element={<TicketPage />} />
-              <Route path="map" element={<MapPage />} />
-              <Route path="profile" element={<ProfilePage />} />
-              <Route path="payment" element={<PaymentPage />} />
-            </Route>
-            <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout /></ProtectedRoute>}>
-              <Route index element={<AdminDashboard />} />
-              <Route path="products" element={<ProductManagePage />} />
-              <Route path="discounts" element={<DiscountPage />} />
-              <Route path="orders" element={<OrdersManagePage />} />
-              <Route path="invoices" element={<InvoicePage />} />
-              <Route path="clients" element={<ClientsPage />} />
-              <Route path="transactions" element={<TransactionsPage />} />
-            </Route>
-            <Route path="/technician" element={<ProtectedRoute allowedRoles={['technician']}><TechnicianLayout /></ProtectedRoute>}>
-              <Route index element={<TechnicianDashboard />} />
-              <Route path="tickets" element={<TicketListPage />} />
-              <Route path="parts" element={<PartRequestsPage />} />
-            </Route>
-            <Route path="*" element={<Navigate to="/" />} />
-          </Routes>
-        </BrowserRouter>
+        <AppRoutes />
       </AuthProvider>
     </ThemeProvider>
   );

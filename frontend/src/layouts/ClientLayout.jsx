@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../contexts/ThemeContext';
+import { IconCart, IconUser, IconLogout, IconSun, IconMoon, IconPackage, IconOrders, IconTicket, IconMap } from '../components/Icons';
 
 export default function ClientLayout() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -15,30 +16,56 @@ export default function ClientLayout() {
       <nav className="bg-blue-600 text-white shadow-lg flex-shrink-0">
         <div className="px-4 md:px-6">
           <div className="flex justify-between items-center h-14">
-            <Link to="/" className="text-lg md:text-xl font-bold tracking-tight">AM Info</Link>
+            <Link to="/" className="text-lg md:text-xl font-bold tracking-tight flex items-center gap-2">
+              <IconPackage size={22} /> AM Info
+            </Link>
             
             <div className="hidden md:flex items-center gap-4 text-sm">
-              <Link to="/products" className="hover:text-blue-200 transition">Produits</Link>
-              <Link to="/about" className="hover:text-blue-200 transition">A propos</Link>
-              <Link to="/map" className="hover:text-blue-200 transition">Boutique</Link>
+              <Link to="/products" className="hover:text-blue-200 transition flex items-center gap-1"><IconPackage size={15} /> Produits</Link>
+              {/* <Link to="/about" className="hover:text-blue-200 transition">A propos</Link> */}
+              <Link to="/map" className="hover:text-blue-200 transition flex items-center gap-1"><IconMap size={15} /> Boutique</Link>
               {isAuthenticated ? (
                 <>
-                  <Link to="/client/cart" className="hover:text-blue-200 transition">Panier</Link>
-                  <Link to="/client/orders" className="hover:text-blue-200 transition">Commandes</Link>
-                  <Link to="/client/tickets" className="hover:text-blue-200 transition">Maintenance</Link>
-                  <Link to="/client/profile" className="hover:text-blue-200 transition">Profil</Link>
+                  <Link to="/client/cart" className="hover:text-blue-200 transition flex items-center gap-1"><IconCart size={15} /> Panier</Link>
+                  <Link to="/client/orders" className="hover:text-blue-200 transition flex items-center gap-1"><IconOrders size={15} /> Commandes</Link>
+                  <Link to="/client/tickets" className="hover:text-blue-200 transition flex items-center gap-1"><IconTicket size={15} /> Maintenance</Link>
+                  
                   <span className="text-blue-200">|</span>
-                  <span className="text-xs">{user?.full_name}</span>
-                  <button onClick={() => { logout(); navigate('/'); }} className="bg-white text-blue-600 px-3 py-1 rounded-full text-xs hover:bg-blue-100 transition">Deconnexion</button>
+                  
+                  {/* Photo + Nom */}
+                  <Link to="/client/profile" className="flex items-center gap-2 hover:text-blue-200 transition">
+                    {user?.avatar_url ? (
+                      <img src={user.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover border-2 border-white/50" />
+                    ) : (
+                      <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
+                        <IconUser size={14} />
+                      </div>
+                    )}
+                    <span className="text-xs">{user?.full_name}</span>
+                  </Link>
+                  
+                  {/* Deconnexion icon */}
+                  <button onClick={() => { logout(); navigate('/'); }} 
+                    className="hover:text-red-200 transition" title="Deconnexion">
+                    <IconLogout size={17} />
+                  </button>
                 </>
               ) : (
-                <Link to="/login" className="bg-white text-blue-600 px-4 py-1.5 rounded-full text-sm hover:bg-blue-100 transition">Connexion</Link>
+                <Link to="/login" className="bg-white text-blue-600 px-4 py-1.5 rounded-full text-sm hover:bg-blue-100 transition flex items-center gap-1">
+                  <IconUser size={15} /> Connexion
+                </Link>
               )}
-              <button onClick={toggle} className="text-white hover:text-blue-200 transition text-lg">{dark ? '☀️' : '🌙'}</button>
+              <button onClick={toggle} className="text-white hover:text-blue-200 transition text-lg">
+                {dark ? <IconSun size={17} /> : <IconMoon size={17} />}
+              </button>
             </div>
 
+            {/* Mobile */}
             <div className="flex md:hidden items-center gap-2">
-              <button onClick={toggle} className="text-white text-lg">{dark ? '☀️' : '🌙'}</button>
+              {isAuthenticated && user?.avatar_url && (
+                <img src={user.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover border-2 border-white/50" />
+              )}
+              <button onClick={toggle} className="text-white text-lg">{dark ? <IconSun size={17} /> : <IconMoon size={17} />}</button>
               <button onClick={() => setMenuOpen(!menuOpen)} className="text-white text-2xl">{menuOpen ? '✕' : '☰'}</button>
             </div>
           </div>
