@@ -17,9 +17,9 @@ export default function ClientLayout() {
           <div className="flex justify-between items-center h-14">
             <Link to="/" className="text-lg md:text-xl font-bold tracking-tight">AM Info</Link>
             
-            {/* Desktop menu */}
-            <div className="hidden md:flex items-center gap-5 text-sm">
+            <div className="hidden md:flex items-center gap-4 text-sm">
               <Link to="/products" className="hover:text-blue-200 transition">Produits</Link>
+              <Link to="/about" className="hover:text-blue-200 transition">A propos</Link>
               <Link to="/map" className="hover:text-blue-200 transition">Boutique</Link>
               {isAuthenticated ? (
                 <>
@@ -37,30 +37,27 @@ export default function ClientLayout() {
               <button onClick={toggle} className="text-white hover:text-blue-200 transition text-lg">{dark ? '☀️' : '🌙'}</button>
             </div>
 
-            {/* Mobile burger */}
             <div className="flex md:hidden items-center gap-2">
               <button onClick={toggle} className="text-white text-lg">{dark ? '☀️' : '🌙'}</button>
-              <button onClick={() => setMenuOpen(!menuOpen)} className="text-white text-2xl">
-                {menuOpen ? '✕' : '☰'}
-              </button>
+              <button onClick={() => setMenuOpen(!menuOpen)} className="text-white text-2xl">{menuOpen ? '✕' : '☰'}</button>
             </div>
           </div>
 
-          {/* Mobile menu */}
           {menuOpen && (
             <div className="md:hidden pb-4 space-y-2">
-              <Link to="/products" onClick={() => setMenuOpen(false)} className="block py-2 hover:text-blue-200">Produits</Link>
-              <Link to="/map" onClick={() => setMenuOpen(false)} className="block py-2 hover:text-blue-200">Boutique</Link>
+              <Link to="/products" onClick={() => setMenuOpen(false)} className="block py-2">Produits</Link>
+              <Link to="/about" onClick={() => setMenuOpen(false)} className="block py-2">A propos</Link>
+              <Link to="/map" onClick={() => setMenuOpen(false)} className="block py-2">Boutique</Link>
               {isAuthenticated ? (
                 <>
-                  <Link to="/client/cart" onClick={() => setMenuOpen(false)} className="block py-2 hover:text-blue-200">Panier</Link>
-                  <Link to="/client/orders" onClick={() => setMenuOpen(false)} className="block py-2 hover:text-blue-200">Commandes</Link>
-                  <Link to="/client/tickets" onClick={() => setMenuOpen(false)} className="block py-2 hover:text-blue-200">Maintenance</Link>
-                  <Link to="/client/profile" onClick={() => setMenuOpen(false)} className="block py-2 hover:text-blue-200">Profil</Link>
+                  <Link to="/client/cart" onClick={() => setMenuOpen(false)} className="block py-2">Panier</Link>
+                  <Link to="/client/orders" onClick={() => setMenuOpen(false)} className="block py-2">Commandes</Link>
+                  <Link to="/client/tickets" onClick={() => setMenuOpen(false)} className="block py-2">Maintenance</Link>
+                  <Link to="/client/profile" onClick={() => setMenuOpen(false)} className="block py-2">Profil</Link>
                   <button onClick={() => { logout(); navigate('/'); setMenuOpen(false); }} className="block py-2 text-red-200">Deconnexion</button>
                 </>
               ) : (
-                <Link to="/login" onClick={() => setMenuOpen(false)} className="block py-2 hover:text-blue-200">Connexion</Link>
+                <Link to="/login" onClick={() => setMenuOpen(false)} className="block py-2">Connexion</Link>
               )}
             </div>
           )}
@@ -69,9 +66,7 @@ export default function ClientLayout() {
       <main className="flex-1 overflow-auto bg-gray-50">
         <div className="max-w-7xl mx-auto px-3 md:px-6 py-4 md:py-6 h-full"><Outlet /></div>
       </main>
-      <footer className="bg-gray-800 text-white text-center py-2 text-xs flex-shrink-0">
-        &copy; 2026 AM Info
-      </footer>
+      <footer className="bg-gray-800 text-white text-center py-2 text-xs flex-shrink-0">&copy; 2026 AM Info</footer>
     </div>
   );
 }

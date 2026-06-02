@@ -128,3 +128,10 @@ class Rating(Base):
     score = Column(Integer, nullable=False)
     comment = Column(Text, nullable=True)
     created_at = Column(DateTime, default=now_madagascar)
+
+class Wishlist(Base):
+    __tablename__ = "wishlists"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    product_id = Column(String, ForeignKey('products.id', ondelete='CASCADE'), nullable=False)
+    created_at = Column(DateTime, default=now_madagascar)

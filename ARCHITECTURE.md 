@@ -1,0 +1,218 @@
+ Architecture du projet AM Info
+
+## Stack technique
+
+| Couche | Technologie |
+|--------|-------------|
+| Frontend | React 18 + Vite + Tailwind CSS |
+| Backend | FastAPI (Python 3.12) |
+| Base de donnees | SQLite (dev) / PostgreSQL (prod) |
+| Cache | Redis |
+| Temps reel | WebSocket |
+| Auth | JWT + Google OAuth 2.0 |
+| PDF | ReportLab |
+| Email | SMTP (simulation en dev) |
+
+---
+
+## Structure du projet
+AM-Info/
+├── frontend/ # Application React
+│ ├── src/
+│ │ ├── api/ # Appels HTTP (axios)
+│ │ ├── components/ # Composants reutilisables
+│ │ ├── contexts/ # AuthContext, ThemeContext
+│ │ ├── hooks/ # useAuth, useCart, useRecentlyViewed
+│ │ ├── layouts/ # ClientLayout, AdminLayout, TechnicianLayout
+│ │ └── pages/ # Pages par role
+│ │ ├── auth/ # Login, Register, GoogleCallback
+│ │ ├── client/ # Home, Products, Cart, Orders, Tickets, Profile
+│ │ ├── admin/ # Dashboard, Products, Discounts, Orders, Invoices, Clients
+│ │ └── technician/ # Dashboard, Tickets, PartRequests
+│ └── .env # Variables d'environnement frontend
+│
+├── backend/ # API FastAPI
+│ ├── app/
+│ │ ├── main.py # Point d'entree
+│ │ ├── config.py # Configuration
+│ │ ├── database.py # Connexion SQLAlchemy
+│ │ ├── models.py # Tous les modeles SQLAlchemy
+│ │ ├── schemas.py # DTO Pydantic
+│ │ ├── exceptions.py # Gestionnaires d'erreurs
+│ │ ├── redis_client.py # Cache Redis
+│ │ ├── auth/ # Authentification
+│ │ ├── products/ # Produits + catalogue
+│ │ ├── cart/ # Panier
+│ │ ├── orders/ # Commandes
+│ │ ├── tickets/ # Tickets maintenance
+│ │ ├── discounts/ # Promotions
+│ │ ├── categories/ # Categories produits
+│ │ ├── dashboard/ # Stats admin
+│ │ ├── invoices/ # Factures PDF
+│ │ ├── ratings/ # Notation tickets
+│ │ ├── clients/ # Gestion clients + broadcast
+│ │ ├── wishlist/ # Favoris
+│ │ ├── ml/ # Chatbot IA
+│ │ ├── emails/ # Emails automatiques
+│ │ └── websocket/ # Temps reel
+│ ├── uploads/ # Fichiers uploades
+│ ├── seed.py # Donnees de test
+│ └── .env # Variables d'environnement backend
+│
+├── ARCHITECTURE.md # Ce fichier
+├── README.md # Documentation utilisateur
+└── .gitignore
+
+text
+
+---
+
+## Architecture modulaire (monolithe modulaire)
+
+Chaque module suit la meme structure :
+module/
+├── init.py
+├── models.py # Optionnel (sinon dans models.py central)
+├── service.py # Logique metier
+├── router.py # Endpoints REST
+└── schemas.py # DTO (optionnel)
+
+text
+
+**Principe** : Chaque module est independant et peut etre transforme en microservice.
+
+---
+
+## Flux de donnees
+Navigateur (React)
+↓ HTTP/WebSocket
+API Gateway (FastAPI)
+↓
+Router → Service → SQLAlchemy → SQLite/PostgreSQL
+↓
+Cache Redis (lectures frequentes)
+↓
+WebSocket Manager (temps reel)
+
+text
+
+---
+
+## Design Patterns utilises
+
+| Pattern | Module | Description |
+|---------|--------|-------------|
+| **Strategy** | discounts | Calcul de prix dynamique (pourcentage/montant fixe) |
+| **Observer** | websocket | Notifications temps reel aux utilisateurs connectes |
+| **Chain of Responsibility** | chatbot | Pipeline de diagnostic (intentions → reponses) |
+| **Factory** | orders, auth | Creation centralisee des commandes et utilisateurs |
+| **State** | orders, tickets | Cycle de vie (pending → paid → delivered) |
+| **Singleton** | websocket, redis | Instance unique du gestionnaire de connexions |
+| **DTO** | schemas | Separation donnees API / modeles DB |
+| **Middleware** | auth | Verification JWT sur chaque requete |
+| **Repository** | services | Abstraction de l'acces aux donnees |
+| **Facade** | main.py | Point d'entree unique de l'API |
+| **Observer** | wishlist | Changement d'etat du coeur favori en temps reel |
+
+---
+
+## Securite
+
+- **JWT** : Token d'acces (24h) avec refresh automatique
+- **RBAC** : 3 roles (client, technicien, admin)
+- **CORS** : Origins configurables
+- **Validation** : Pydantic sur toutes les entrees
+- **Rate Limiting** : A implementer (Redis)
+- **Mots de passe** : Hash bcrypt
+
+---
+
+## Performances
+
+- **Cache Redis** : Produits (5min), Dashboard (2min), Populaires (10min)
+- **Pagination** : 12 produits/page, 20 commandes/page
+- **Debounce** : Recherche autocomplete (200ms)
+- **Compression** : A implementer (Gzip)
+
+---
+
+## Evolutivite
+
+- **Monolithe modulaire** : Chaque module peut devenir un microservice
+- **SQLite → PostgreSQL** : Changer 1 ligne dans database.py
+- **Uploads locaux → Cloud** : Changer le service d'upload
+- **Email simulation → SMTP** : Configurer .env
+- **WebSocket → Redis Pub/Sub** : Pour multi-instances
+
+---
+
+## Diagramme de la base de donnees
+users
+├── orders
+│ └── order_items
+├── cart_items
+├── tickets
+│ └── ticket_messages
+├── wishlists
+└── ratings
+
+products
+├── order_items
+├── cart_items
+├── wishlists
+└── discounts (target_id)
+
+discounts (target_type: product/category/global)
+
+categories (independant)
+invoices (lie a orders)
+
+text
+
+---
+
+## API Endpoints (principaux)
+
+### Auth
+- `POST /auth/register` - Inscription
+- `POST /auth/login` - Connexion
+- `POST /auth/refresh` - Rafraichir token
+- `GET /auth/me` - Profil utilisateur
+
+### Produits
+- `GET /products?page=1&limit=12` - Catalogue pagine
+- `GET /products/search?q=` - Autocomplete
+- `GET /products/{id}` - Detail produit
+- `GET /products/{id}/also-bought` - Produits frequemment achetes ensemble
+
+### Commandes
+- `GET /cart` - Panier
+- `POST /cart/items` - Ajouter au panier
+- `POST /orders` - Creer commande
+- `GET /orders` - Mes commandes
+- `DELETE /orders/{id}` - Annuler commande
+
+### Tickets
+- `POST /tickets` - Creer ticket
+- `GET /tickets` - Mes tickets
+- `POST /tickets/{id}/messages` - Envoyer message
+- `POST /tickets/{id}/upload` - Envoyer photo
+
+### Admin
+- `GET /admin/products` - Gestion produits
+- `GET /admin/orders` - Gestion commandes
+- `GET /admin/clients` - Liste clients
+- `POST /admin/clients/broadcast` - Email aux clients
+- `GET /admin/stats` - Dashboard stats
+
+### Wishlist
+- `GET /wishlist` - Mes favoris
+- `POST /wishlist/{id}` - Ajouter/Retirer favori
+- `GET /wishlist/ids` - IDs des favoris
+
+---
+
+## Auteur
+
+Projet de fin d'etudes - Master 2 Sciences de Donnees et Intelligence Artificielle
+ENDOFFILE

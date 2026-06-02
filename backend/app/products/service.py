@@ -158,3 +158,57 @@ def update_stock(db: Session, product_id: str, quantity: int):
         db.commit()
         invalidate_product_cache()
     return product
+
+def get_also_bought(db: Session, product_id: str):
+    """Clients ayant achete ce produit, puis autres produits achetes par ces clients"""
+    from ..models import Order, OrderItem
+    from sqlalchemy import func
+    
+    # Trouver les commandes contenant ce produit
+    order_ids = db.query(OrderItem.order_id).filter(OrderItem.product_id == product_id).subquery()
+    
+    # Trouver les autres produits dans ces memes commandes
+    related = db.query(
+        OrderItem.product_id,
+        func.count(OrderItem.id).label('count')
+    ).filter(
+        OrderItem.order_id.in_(order_ids),
+        OrderItem.product_id != product_id
+    ).group_by(OrderItem.product_id).order_by(func.count(OrderItem.id).desc()).limit(4).all()
+    
+    result = []
+    for pid, count in related:
+        product = db.query(Product).filter(Product.id == pid, Product.is_visible == True, Product.stock_quantity > 0).first()
+        if product:
+            p = _apply_best_discount(product, db)
+            p['bought_together_count'] = count
+            result.append(p)
+    
+    return result
+
+def get_visible_products_paginated(db: Session, page: int = 1, limit: int = 12):
+    offset = (page - 1) * limit
+    total = db.query(Product).filter(Product.is_visible == True, Product.stock_quantity > 0).count()
+    products = db.query(Product).filter(
+        Product.is_visible == True, Product.stock_quantity > 0
+    ).order_by(Product.created_at.desc()).offset(offset).limit(limit).all()
+    
+    return {
+        "items": [_apply_best_discount(p, db) for p in products],
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "pages": (total + limit - 1) // limit
+    }
+
+def get_all_products_paginated(db: Session, page: int = 1, limit: int = 20):
+    offset = (page - 1) * limit
+    total = db.query(Product).count()
+    products = db.query(Product).order_by(Product.created_at.desc()).offset(offset).limit(limit).all()
+    return {
+        "items": [p for p in products],
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "pages": (total + limit - 1) // limit
+    }

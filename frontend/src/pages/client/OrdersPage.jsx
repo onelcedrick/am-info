@@ -28,8 +28,8 @@ export default function OrdersPage() {
   };
 
   const statusLabels = {
-    pending: 'En attente', awaiting_payment: 'Paiement boutique', paid: 'Payee',
-    preparing: 'Preparation', ready: 'Prete', delivered: 'Livree', cancelled: 'Annulee'
+    pending: 'En attente', awaiting_payment: 'Paiement en boutique', paid: 'Payee',
+    preparing: 'En preparation', ready: 'Prete', delivered: 'Livree', cancelled: 'Annulee'
   };
   const statusColors = {
     pending: 'bg-yellow-100 text-yellow-800', awaiting_payment: 'bg-blue-100 text-blue-800',
@@ -41,13 +41,8 @@ export default function OrdersPage() {
     return (
       <div>
         <h1 className="text-2xl font-bold mb-6">Mes Commandes</h1>
-        <div className="space-y-4 animate-pulse">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="bg-white rounded-xl shadow p-6">
-              <div className="h-4 bg-gray-200 rounded w-1/4 mb-3" />
-              <div className="h-6 bg-gray-200 rounded w-1/3" />
-            </div>
-          ))}
+        <div className="space-y-3 animate-pulse">
+          {[...Array(3)].map((_, i) => <div key={i} className="bg-white rounded-xl p-6 h-24" />)}
         </div>
       </div>
     );
@@ -55,38 +50,35 @@ export default function OrdersPage() {
 
   if (orders.length === 0) {
     return (
-      <EmptyState
-        icon="📋"
-        title="Aucune commande"
-        description="Vous n'avez pas encore passe de commande."
-        action={
-          <Link to="/products" className="bg-blue-600 text-white px-6 py-2 rounded-full text-sm">
-            Voir les produits
-          </Link>
-        }
-      />
+      <EmptyState icon="📋" title="Aucune commande" description="Vous n'avez pas encore passe de commande."
+        action={<Link to="/products" className="bg-blue-600 text-white px-6 py-2 rounded-full text-sm">Voir les produits</Link>} />
     );
   }
 
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Mes Commandes</h1>
-      <div className="space-y-4">
+      <div className="space-y-3">
         {orders.map(order => (
-          <div key={order.id} className="bg-white rounded-xl shadow p-6">
-            <div className="flex justify-between items-center mb-3">
-              <div>
-                <span className="text-sm text-gray-500">#{order.id.slice(0, 8)}</span>
-                <span className="text-sm text-gray-400 ml-4">{new Date(order.created_at).toLocaleDateString('fr-FR')}</span>
+          <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-100 px-5 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <span className="text-xs text-gray-400 font-mono">#{order.id.slice(0, 8)}</span>
+                <span className="text-xs text-gray-400">
+                  {new Date(order.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </span>
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusColors[order.status]}`}>
+                  {statusLabels[order.status]}
+                </span>
               </div>
-              <div className="flex items-center gap-3">
-                <span className={`px-3 py-1 rounded-full text-sm font-semibold ${statusColors[order.status]}`}>{statusLabels[order.status]}</span>
+              <div className="flex items-center gap-4">
+                <span className="font-bold text-blue-600">{order.total_amount?.toLocaleString()} Ar</span>
                 {(order.status === 'pending' || order.status === 'awaiting_payment') && (
-                  <button onClick={() => cancelOrder(order.id)} className="text-red-500 text-sm font-semibold hover:underline">Annuler</button>
+                  <button onClick={() => cancelOrder(order.id)}
+                    className="text-xs text-gray-300 hover:text-red-400 transition">✕</button>
                 )}
               </div>
             </div>
-            <p className="text-lg font-bold text-blue-600">{order.total_amount?.toLocaleString()} Ar</p>
           </div>
         ))}
       </div>

@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from .database import engine, Base
+from .exceptions import register_exception_handlers
 from .auth.router import router as auth_router
 from .products.router import router as products_router, admin_router as products_admin_router
 from .cart.router import router as cart_router
@@ -15,9 +16,13 @@ from .categories.router import router as categories_router, public_router as cat
 from .dashboard.router import router as dashboard_router
 from .ratings.router import router as ratings_router
 from .clients.router import router as clients_router
+from .wishlist.router import router as wishlist_router
 from .websocket.router import router as ws_router
 
 app = FastAPI(title="AM Info API", version="1.0")
+
+# Enregistrer les gestionnaires d'erreurs
+register_exception_handlers(app)
 
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
@@ -40,6 +45,7 @@ app.include_router(categories_public_router)
 app.include_router(dashboard_router)
 app.include_router(ratings_router)
 app.include_router(clients_router)
+app.include_router(wishlist_router)
 app.include_router(ws_router)
 
 @app.get("/")

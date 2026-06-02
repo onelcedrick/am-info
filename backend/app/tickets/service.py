@@ -95,3 +95,17 @@ def search_tickets(db: Session, search: str = None, status: str = None, priority
         query = query.filter(Ticket.priority == priority)
     
     return query.order_by(Ticket.created_at.desc()).all()
+
+# Dans tickets/service.py, ajouter :
+def delete_message(db: Session, msg_id: str):
+    msg = db.query(TicketMessage).filter(TicketMessage.id == msg_id).first()
+    if msg:
+        db.delete(msg)
+        db.commit()
+def delete_message(db: Session, msg_id: str):
+    msg = db.query(TicketMessage).filter(TicketMessage.id == msg_id).first()
+    if msg:
+        db.delete(msg)
+        db.commit()
+        return True
+    return False

@@ -91,3 +91,26 @@ def change_status(ticket_id: str, status: str, db: Session = Depends(get_db)):
             email_service.send_ticket_resolved(client.email, ticket.subject, str(ticket.id))
     cache.delete("dashboard:admin_stats")
     return ticket
+
+@router.delete("/{ticket_id}/messages/{msg_id}")
+def delete_message(ticket_id: str, msg_id: str, payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    ticket = ticket_service.get_ticket_detail(db, ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404)
+    # Seul le technicien assigpeut supprimer les messages
+    if payload.get("role") not in ["technician", "admin"]:
+        raise HTTPException(status_code=403)
+    ticket_service.delete_message(db, msg_id)
+    return {"message": "Supprime"}
+
+@router.put("/{ticket_id}/messages/{msg_id}")
+def update_message(ticket_id: str, msg_id: str, data: MessageCreate, payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    msg = db.query(TicketMessage).filter(TicketMessage.id == msg_id).first()
+    if not msg:
+        raise HTTPException(status_code=404)
+    # Seul l'auteur peut modifier son message
+    if msg.sender_id != payload.get("sub"):
+        raise HTTPException(status_code=403, detail="Vous ne pouvez modifier que vos propres messages")
+    msg.message = data.message
+    db.commit()
+    return {"message": "Modifie"}

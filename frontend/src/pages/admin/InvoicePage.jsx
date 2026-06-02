@@ -10,7 +10,11 @@ export default function InvoicePage() {
 
   useEffect(() => {
     api.get('/admin/orders')
-      .then(r => setOrders(r.data))
+      .then(r => {
+        // Filtrer : ne pas afficher les commandes annulees
+        const filtered = (r.data || []).filter(order => order.status !== 'cancelled');
+        setOrders(filtered);
+      })
       .catch(err => console.error('Erreur chargement commandes:', err));
   }, []);
 
@@ -19,7 +23,7 @@ export default function InvoicePage() {
     try {
       const res = await api.post(`/admin/invoices/${orderId}`);
       setPdfUrl(res.data.pdf_url);
-      setMessage(`Facture generee ! Cliquez sur le lien pour ouvrir.`);
+      setMessage('Facture generee ! Cliquez sur le lien pour ouvrir.');
       setTimeout(() => setMessage(''), 5000);
     } catch (err) {
       console.error('Erreur facture:', err);
@@ -31,7 +35,7 @@ export default function InvoicePage() {
 
   const statusLabels = {
     pending: 'En attente', awaiting_payment: 'Paiement boutique', paid: 'Payee',
-    preparing: 'Preparation', ready: 'Prete', delivered: 'Livree', cancelled: 'Annulee'
+    preparing: 'Preparation', ready: 'Prete', delivered: 'Livree'
   };
 
   return (
@@ -80,7 +84,7 @@ export default function InvoicePage() {
                 </tr>
               ))}
               {orders.length === 0 && (
-                <tr><td colSpan={5} className="p-8 text-center text-gray-400">Aucune commande</td></tr>
+                <tr><td colSpan={5} className="p-8 text-center text-gray-400">Aucune commande eligible</td></tr>
               )}
             </tbody>
           </table>
