@@ -10,6 +10,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import PageLoader from './components/PageLoader';
 import PageTransition from './components/PageTransition';
 import SEO from './components/SEO';
+import CompareBar from './components/CompareBar';
 import ClientLayout from './layouts/ClientLayout';
 import AdminLayout from './layouts/AdminLayout';
 import TechnicianLayout from './layouts/TechnicianLayout';
@@ -19,6 +20,7 @@ import GoogleCallback from './pages/auth/GoogleCallback';
 import HomePage from './pages/client/HomePage';
 import ProductListPage from './pages/client/ProductListPage';
 import ProductDetailPage from './pages/client/ProductDetailPage';
+import ComparePage from './pages/client/ComparePage';
 import CartPage from './pages/client/CartPage';
 import OrdersPage from './pages/client/OrdersPage';
 import TicketPage from './pages/client/TicketPage';
@@ -64,6 +66,7 @@ function AppRoutes() {
             <Route index element={<PageTransition><SEO /><HomePage /></PageTransition>} />
             <Route path="products" element={<PageTransition><SEO title="Produits" description="Catalogue de materiel informatique" /><ProductListPage /></PageTransition>} />
             <Route path="products/:id" element={<PageTransition><ProductDetailPage /></PageTransition>} />
+            <Route path="compare" element={<PageTransition><ComparePage /></PageTransition>} />
             <Route path="map" element={<PageTransition><SEO title="Boutique" description="Notre boutique a Antananarivo" /><MapPage /></PageTransition>} />
           </Route>
           <Route path="/login" element={<PageTransition><SEO title="Connexion" /><LoginPage /></PageTransition>} />
@@ -75,6 +78,7 @@ function AppRoutes() {
             <Route index element={<PageTransition><HomePage /></PageTransition>} />
             <Route path="products" element={<PageTransition><ProductListPage /></PageTransition>} />
             <Route path="products/:id" element={<PageTransition><ProductDetailPage /></PageTransition>} />
+            <Route path="compare" element={<PageTransition><ComparePage /></PageTransition>} />
             <Route path="cart" element={<PageTransition><SEO title="Panier" /><CartPage /></PageTransition>} />
             <Route path="orders" element={<PageTransition><SEO title="Mes Commandes" /><OrdersPage /></PageTransition>} />
             <Route path="tickets" element={<PageTransition><SEO title="Maintenance" /><TicketPage /></PageTransition>} />
@@ -104,6 +108,7 @@ function AppRoutes() {
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </AnimatePresence>
+      <CompareBar />
     </>
   );
 }

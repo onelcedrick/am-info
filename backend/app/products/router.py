@@ -93,3 +93,30 @@ def admin_delete_product(product_id: str, db: Session = Depends(get_db)):
     log_activity(db, "admin", "delete", "product", product_id, f"Produit supprime: {name}")
     cache.delete("dashboard:admin_stats"); cache.clear_pattern("products:*")
     return {"message": "Produit supprime"}
+
+
+@router.get("/products/compare")
+def compare_products(ids: str = Query(""), db: Session = Depends(get_db)):
+    from .comparison import comparator
+    product_ids = [pid.strip() for pid in ids.split(",") if pid.strip()]
+    if len(product_ids) < 2:
+        return {"error": "Fournissez au moins 2 IDs"}
+    return comparator.compare_products(db, product_ids)
+
+@router.get("/compare")
+def compare_products(ids: str = Query(""), db: Session = Depends(get_db)):
+    from .comparison import comparator
+    product_ids = [pid.strip() for pid in ids.split(",") if pid.strip()]
+    if len(product_ids) < 2:
+        return {"error": "Fournissez au moins 2 IDs"}
+    return comparator.compare_products(db, product_ids)
+
+@router.get("/search-all")
+def search_all_products(q: str = Query(""), db: Session = Depends(get_db)):
+    """Recherche tous les produits (admin) - pour le select de promotion"""
+    if not q or len(q) < 2:
+        return []
+    products = db.query(Product).filter(
+        (Product.name.ilike(f'%{q}%')) | (Product.category.ilike(f'%{q}%'))
+    ).limit(10).all()
+    return [{"id": p.id, "name": p.name, "price": float(p.price), "category": p.category} for p in products]

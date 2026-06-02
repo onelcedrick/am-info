@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
+import useConfirm from '../../hooks/useConfirm';
 import { SkeletonRow, EmptyState } from '../../components/Skeleton';
 
 export default function ProductManagePage() {
@@ -24,12 +25,12 @@ export default function ProductManagePage() {
   const [editCatId, setEditCatId] = useState(null);
   const [editCatName, setEditCatName] = useState('');
   const fileInputRef = useRef(null);
+  const { confirm, Modal } = useConfirm();
 
   const loadData = () => {
     setLoading(true);
     Promise.all([
       api.get('/admin/products/').then(r => {
-        // Gerer les deux formats : tableau simple ou {items, total, ...}
         const data = r.data;
         setProducts(Array.isArray(data) ? data : (data.items || []));
       }),
@@ -58,7 +59,8 @@ export default function ProductManagePage() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Supprimer ce produit ?')) return;
+    const ok = await confirm('Supprimer le produit', 'Cette action est irreversible.', 'danger');
+    if (!ok) return;
     await api.delete(`/admin/products/${id}`);
     toast.success('Produit supprime');
     loadProducts();
@@ -116,6 +118,7 @@ export default function ProductManagePage() {
 
   return (
     <div className="h-full flex flex-col">
+      {Modal}
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">Produits ({products.length})</h1>
         <button onClick={() => { resetForm(); setShowForm(!showForm); }}
@@ -166,7 +169,7 @@ export default function ProductManagePage() {
           {categories.map(c => (
             <div key={c.id} className="bg-gray-100 rounded-full px-3 py-1 text-sm flex items-center gap-1">
               {editCatId === c.id ? <><input value={editCatName} onChange={e => setEditCatName(e.target.value)} className="w-24 text-xs border rounded px-1" /><button onClick={async () => { await api.put(`/admin/categories/${c.id}`, { name: editCatName }); setEditCatId(null); api.get('/admin/categories/').then(r => setCategories(r.data)); }} className="text-green-600 text-xs">OK</button></>
-                : <><span>{c.name}</span><button onClick={() => { setEditCatId(c.id); setEditCatName(c.name); }} className="text-blue-500 text-xs ml-1">Modifier</button><button onClick={async () => { if(confirm('Supprimer ?')){ await api.delete(`/admin/categories/${c.id}`); api.get('/admin/categories/').then(r => setCategories(r.data)); }}} className="text-red-500 text-xs ml-1">&times;</button></>}
+                : <><span>{c.name}</span><button onClick={() => { setEditCatId(c.id); setEditCatName(c.name); }} className="text-blue-500 text-xs ml-1">Modifier</button><button onClick={async () => { const ok = await confirm('Supprimer la categorie', 'Cette action est irreversible.', 'danger'); if (!ok) return; await api.delete(`/admin/categories/${c.id}`); api.get('/admin/categories/').then(r => setCategories(r.data)); }} className="text-red-500 text-xs ml-1">&times;</button></>}
             </div>
           ))}
         </div>
