@@ -28,6 +28,8 @@ import TechnicianDashboard from './pages/technician/DashboardPage';
 import TicketListPage from './pages/technician/TicketListPage';
 import PartRequestsPage from './pages/technician/PartRequestsPage';
 import ClientsPage from './pages/admin/ClientsPage';
+import PaymentPage from './pages/client/PaymentPage';
+import TransactionsPage from './pages/admin/TransactionsPage';
 
 function App() {
   return (
@@ -57,6 +59,7 @@ function App() {
               <Route path="tickets" element={<TicketPage />} />
               <Route path="map" element={<MapPage />} />
               <Route path="profile" element={<ProfilePage />} />
+              <Route path="payment" element={<PaymentPage />} />
             </Route>
             <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout /></ProtectedRoute>}>
               <Route index element={<AdminDashboard />} />
@@ -65,6 +68,7 @@ function App() {
               <Route path="orders" element={<OrdersManagePage />} />
               <Route path="invoices" element={<InvoicePage />} />
               <Route path="clients" element={<ClientsPage />} />
+              <Route path="transactions" element={<TransactionsPage />} />
             </Route>
             <Route path="/technician" element={<ProtectedRoute allowedRoles={['technician']}><TechnicianLayout /></ProtectedRoute>}>
               <Route index element={<TechnicianDashboard />} />

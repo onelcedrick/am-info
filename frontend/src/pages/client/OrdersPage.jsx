@@ -4,17 +4,20 @@ import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import { EmptyState } from '../../components/Skeleton';
+import PaymentModal from '../../components/PaymentModal';
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [paymentOrder, setPaymentOrder] = useState(null);
 
   useEffect(() => {
-    api.get('/orders/')
-      .then(res => setOrders(res.data || []))
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    loadOrders();
   }, []);
+
+  const loadOrders = () => {
+    api.get('/orders/').then(res => setOrders(res.data || [])).finally(() => setLoading(false));
+  };
 
   const cancelOrder = async (orderId) => {
     if (!confirm('Annuler cette commande ?')) return;
@@ -22,17 +25,20 @@ export default function OrdersPage() {
       await api.delete(`/orders/${orderId}`);
       toast.success('Commande annulee');
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'cancelled' } : o));
-    } catch (err) {
-      toast.error(err.response?.data?.detail || 'Erreur');
-    }
+    } catch (err) { toast.error(err.response?.data?.detail || 'Erreur'); }
+  };
+
+  const handlePaymentSuccess = () => {
+    setPaymentOrder(null);
+    loadOrders();
   };
 
   const statusLabels = {
-    pending: 'En attente', awaiting_payment: 'Paiement en boutique', paid: 'Payee',
+    pending: 'En attente', awaiting_payment: 'En attente de paiement', paid: 'Payee',
     preparing: 'En preparation', ready: 'Prete', delivered: 'Livree', cancelled: 'Annulee'
   };
   const statusColors = {
-    pending: 'bg-yellow-100 text-yellow-800', awaiting_payment: 'bg-blue-100 text-blue-800',
+    pending: 'bg-yellow-100 text-yellow-800', awaiting_payment: 'bg-orange-100 text-orange-800',
     paid: 'bg-green-100 text-green-800', preparing: 'bg-purple-100 text-purple-800',
     ready: 'bg-teal-100 text-teal-800', delivered: 'bg-green-200 text-green-900', cancelled: 'bg-red-100 text-red-800'
   };
@@ -71,8 +77,16 @@ export default function OrdersPage() {
                   {statusLabels[order.status]}
                 </span>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 <span className="font-bold text-blue-600">{order.total_amount?.toLocaleString()} Ar</span>
+                
+                {(order.status === 'pending' || order.status === 'awaiting_payment') && (
+                  <button onClick={() => setPaymentOrder(order)}
+                    className="bg-green-600 text-white px-3 py-1 rounded-full text-xs font-semibold hover:bg-green-700 transition">
+                    Payer
+                  </button>
+                )}
+                
                 {(order.status === 'pending' || order.status === 'awaiting_payment') && (
                   <button onClick={() => cancelOrder(order.id)}
                     className="text-xs text-gray-300 hover:text-red-400 transition">✕</button>
@@ -82,6 +96,16 @@ export default function OrdersPage() {
           </div>
         ))}
       </div>
+
+      {/* Modal de paiement */}
+      {paymentOrder && (
+        <PaymentModal
+          orderId={paymentOrder.id}
+          orderTotal={paymentOrder.total_amount}
+          onClose={() => setPaymentOrder(null)}
+          onSuccess={handlePaymentSuccess}
+        />
+      )}
     </div>
   );
 }

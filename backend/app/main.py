@@ -17,11 +17,10 @@ from .dashboard.router import router as dashboard_router
 from .ratings.router import router as ratings_router
 from .clients.router import router as clients_router
 from .wishlist.router import router as wishlist_router
+from .payments.router import router as payments_router, admin_router as payments_admin_router
 from .websocket.router import router as ws_router
 
 app = FastAPI(title="AM Info API", version="1.0")
-
-# Enregistrer les gestionnaires d'erreurs
 register_exception_handlers(app)
 
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
@@ -46,6 +45,8 @@ app.include_router(dashboard_router)
 app.include_router(ratings_router)
 app.include_router(clients_router)
 app.include_router(wishlist_router)
+app.include_router(payments_router)
+app.include_router(payments_admin_router)
 app.include_router(ws_router)
 
 @app.get("/")
