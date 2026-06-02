@@ -70,7 +70,7 @@ async def upload_avatar(
     content = await file.read()
     with open(filepath, "wb") as f:
         f.write(content)
-    user.avatar_url = f"http://localhost:8000/uploads/{filename}"
+    user.avatar_url = f"{settings.BASE_URL}/uploads/{filename}"
     db.commit()
     return {"avatar_url": user.avatar_url}
 

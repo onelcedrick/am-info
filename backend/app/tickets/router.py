@@ -56,7 +56,7 @@ async def upload_photo(ticket_id: str, file: UploadFile = File(...), payload: di
     content = await file.read()
     with open(filepath, "wb") as f:
         f.write(content)
-    image_url = f"http://localhost:8000/uploads/{filename}"
+    image_url = f"{settings.BASE_URL}/uploads/{filename}"
     msg = ticket_service.add_message(db, ticket_id, payload.get("sub"), "Photo de la piece", attachment_url=image_url)
     return {"message": "Photo envoyee", "image_url": image_url, "message_id": msg.id}
 
