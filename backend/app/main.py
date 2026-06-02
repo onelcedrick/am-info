@@ -10,7 +10,7 @@ from .cart.router import router as cart_router
 from .orders.router import router as orders_router, admin_router as orders_admin_router
 from .tickets.router import router as tickets_router, technician_router as tickets_tech_router
 from .discounts.router import router as discounts_router
-from .ml.router import router as chatbot_router
+from .ml.router import router as ml_router
 from .invoices.router import router as invoices_router
 from .categories.router import router as categories_router, public_router as categories_public_router
 from .dashboard.router import router as dashboard_router
@@ -22,10 +22,8 @@ from .websocket.router import router as ws_router
 
 app = FastAPI(title="AM Info API", version="1.0")
 register_exception_handlers(app)
-
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
-
 Base.metadata.create_all(bind=engine)
 
 app.include_router(auth_router)
@@ -37,7 +35,7 @@ app.include_router(orders_admin_router)
 app.include_router(tickets_router)
 app.include_router(tickets_tech_router)
 app.include_router(discounts_router)
-app.include_router(chatbot_router)
+app.include_router(ml_router)
 app.include_router(invoices_router)
 app.include_router(categories_router)
 app.include_router(categories_public_router)

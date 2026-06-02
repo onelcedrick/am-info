@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..auth.service import decode_token
-from ..tickets import service as ticket_service
+from .recommendation import engine
 from .chatbot import chatbot
 
-router = APIRouter(prefix="/chatbot", tags=["chatbot"])
+router = APIRouter(prefix="/recommendations", tags=["recommendations"])
 
 def get_current_user(authorization: str = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):
@@ -16,21 +16,21 @@ def get_current_user(authorization: str = Header(None)):
         raise HTTPException(status_code=401)
     return payload
 
-@router.post("/ask")
-def ask_chatbot(
-    data: dict,
-    payload: dict = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
+@router.get("/product/{product_id}")
+def product_recommendations(product_id: str, category: str = Query(None), db: Session = Depends(get_db)):
+    return engine.get_recommendations(db, {"product_id": product_id, "category": category}, 8)
+
+@router.get("/home")
+def home_recommendations(db: Session = Depends(get_db)):
+    return engine.get_recommendations(db, limit=12)
+
+@router.post("/chatbot/ask")
+def ask_chatbot(data: dict, payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    from ..tickets import service as ticket_service
     message = data.get("message", "")
     ticket_id = data.get("ticket_id")
-    
-    # Obtenir la reponse du chatbot
     response = chatbot.get_response(message)
-    
-    # Sauvegarder dans le ticket si existe
     if ticket_id:
         ticket_service.add_message(db, ticket_id, payload.get("sub"), message)
         ticket_service.add_message(db, ticket_id, "bot", response, is_bot=True)
-    
     return {"response": response, "from_bot": True}
