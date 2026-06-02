@@ -135,3 +135,14 @@ class Wishlist(Base):
     user_id = Column(String, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     product_id = Column(String, ForeignKey('products.id', ondelete='CASCADE'), nullable=False)
     created_at = Column(DateTime, default=now_madagascar)
+
+class ActivityLog(Base):
+    __tablename__ = "activity_logs"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey('users.id'), nullable=True)
+    action = Column(String(100), nullable=False)  # create, update, delete, login, etc.
+    entity = Column(String(50), nullable=True)     # product, order, ticket, etc.
+    entity_id = Column(String, nullable=True)
+    details = Column(Text, nullable=True)
+    ip_address = Column(String(45), nullable=True)
+    created_at = Column(DateTime, default=now_madagascar)

@@ -4,28 +4,31 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..schemas import DiscountCreate
 from . import service
+from ..logs.service import log_activity
 from ..redis_client import cache
 
 router = APIRouter(prefix="/admin/discounts", tags=["admin-discounts"])
 
 @router.get("/")
-def list_discounts(db: Session = Depends(get_db)):
-    return service.get_all_discounts(db)
+def list_discounts(db: Session = Depends(get_db)): return service.get_all_discounts(db)
 
 @router.post("/")
 def create_discount(data: DiscountCreate, db: Session = Depends(get_db)):
     result = service.create_discount(db, data.model_dump())
+    log_activity(db, "admin", "create", "discount", str(result.id), f"Promotion: {data.name}, {data.value}")
     cache.clear_pattern("products:*")
     return result
 
 @router.patch("/{discount_id}/toggle")
 def toggle_discount(discount_id: str, db: Session = Depends(get_db)):
     result = service.toggle_discount(db, discount_id)
+    log_activity(db, "admin", "update", "discount", discount_id, "Activation/desactivation")
     cache.clear_pattern("products:*")
     return result
 
 @router.delete("/{discount_id}")
 def delete_discount(discount_id: str, db: Session = Depends(get_db)):
     service.delete_discount(db, discount_id)
+    log_activity(db, "admin", "delete", "discount", discount_id, "Promotion supprimee")
     cache.clear_pattern("products:*")
     return {"message": "Supprime"}

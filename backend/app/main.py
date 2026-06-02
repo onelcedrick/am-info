@@ -18,6 +18,7 @@ from .ratings.router import router as ratings_router
 from .clients.router import router as clients_router
 from .wishlist.router import router as wishlist_router
 from .payments.router import router as payments_router, admin_router as payments_admin_router
+from .logs.router import router as logs_router
 from .websocket.router import router as ws_router
 
 app = FastAPI(title="AM Info API", version="1.0")
@@ -45,6 +46,7 @@ app.include_router(clients_router)
 app.include_router(wishlist_router)
 app.include_router(payments_router)
 app.include_router(payments_admin_router)
+app.include_router(logs_router)
 app.include_router(ws_router)
 
 @app.get("/")

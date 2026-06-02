@@ -5,6 +5,7 @@ from ..database import get_db
 from ..models import Product
 from ..config import settings
 from . import service
+from ..logs.service import log_activity
 from ..redis_client import cache
 import os, uuid
 
@@ -60,6 +61,7 @@ async def admin_create_product(
         with open(filepath, "wb") as f: f.write(content)
         image_url = f"{settings.BASE_URL}/uploads/{filename}"
     result = service.create_product(db, {"name": name, "price": price, "category": category, "description": description, "stock_quantity": stock_quantity, "image_url": image_url})
+    log_activity(db, "admin", "create", "product", str(result.id), f"Produit: {name}, Prix: {price} Ar")
     cache.delete("dashboard:admin_stats"); cache.clear_pattern("products:*")
     return result
 
@@ -67,21 +69,27 @@ async def admin_create_product(
 def admin_update_product(product_id: str, data: dict, db: Session = Depends(get_db)):
     product = service.update_product(db, product_id, data)
     if not product: raise HTTPException(status_code=404)
+    log_activity(db, "admin", "update", "product", product_id, f"Modification: {data}")
     cache.delete("dashboard:admin_stats"); cache.clear_pattern("products:*")
     return product
 
 @admin_router.patch("/{product_id}/visibility")
 def admin_toggle_visibility(product_id: str, db: Session = Depends(get_db)):
     result = service.toggle_visibility(db, product_id)
+    log_activity(db, "admin", "update", "product", product_id, "Visibilite modifiee")
     cache.clear_pattern("products:*"); return result
 
 @admin_router.patch("/{product_id}/stock")
 def admin_update_stock(product_id: str, quantity: int, db: Session = Depends(get_db)):
     result = service.update_stock(db, product_id, quantity)
+    log_activity(db, "admin", "update", "product", product_id, f"Stock mis a jour: {quantity}")
     cache.clear_pattern("products:*"); cache.delete("dashboard:admin_stats"); return result
 
 @admin_router.delete("/{product_id}")
 def admin_delete_product(product_id: str, db: Session = Depends(get_db)):
+    product = db.query(Product).filter(Product.id == product_id).first()
+    name = product.name if product else "Inconnu"
     service.delete_product(db, product_id)
+    log_activity(db, "admin", "delete", "product", product_id, f"Produit supprime: {name}")
     cache.delete("dashboard:admin_stats"); cache.clear_pattern("products:*")
     return {"message": "Produit supprime"}

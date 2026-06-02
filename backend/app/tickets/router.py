@@ -6,10 +6,10 @@ from ..models import User
 from ..schemas import TicketCreate, MessageCreate
 from . import service as ticket_service
 from ..emails import service as email_service
+from ..logs.service import log_activity
 from ..auth.service import decode_token
-from ..redis_client import cache
-import os
-import uuid
+from ..config import settings
+import os, uuid
 
 router = APIRouter(prefix="/tickets", tags=["tickets"])
 technician_router = APIRouter(prefix="/technician/tickets", tags=["technician-tickets"])
@@ -21,17 +21,15 @@ def get_current_user(authorization: str = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401)
     payload = decode_token(authorization.split(" ")[1])
-    if not payload:
-        raise HTTPException(status_code=401)
+    if not payload: raise HTTPException(status_code=401)
     return payload
 
 @router.post("")
 def create_ticket(data: TicketCreate, payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     ticket = ticket_service.create_ticket(db, payload.get("sub"), data.subject, data.description, data.priority)
     user = db.query(User).filter(User.id == payload.get("sub")).first()
-    if user:
-        email_service.send_ticket_created(user.email, ticket.subject, str(ticket.id))
-    cache.delete("dashboard:admin_stats")
+    if user: email_service.send_ticket_created(user.email, ticket.subject, str(ticket.id))
+    log_activity(db, payload.get("sub"), "create", "ticket", str(ticket.id), f"Ticket: {data.subject}")
     return ticket
 
 @router.get("")
@@ -54,23 +52,27 @@ async def upload_photo(ticket_id: str, file: UploadFile = File(...), payload: di
     filename = f"{uuid.uuid4()}.{ext}"
     filepath = os.path.join(UPLOAD_DIR, filename)
     content = await file.read()
-    with open(filepath, "wb") as f:
-        f.write(content)
+    with open(filepath, "wb") as f: f.write(content)
     image_url = f"{settings.BASE_URL}/uploads/{filename}"
     msg = ticket_service.add_message(db, ticket_id, payload.get("sub"), "Photo de la piece", attachment_url=image_url)
-    return {"message": "Photo envoyee", "image_url": image_url, "message_id": msg.id}
+    return {"message": "Photo envoyee", "image_url": image_url}
 
 @router.delete("/{ticket_id}/messages")
 def clear_messages(ticket_id: str, payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
-    user_id = payload.get("sub")
-    role = payload.get("role")
     ticket = ticket_service.get_ticket_detail(db, ticket_id)
-    if not ticket:
-        raise HTTPException(status_code=404)
-    if ticket.client_id != user_id and role != "admin":
+    if not ticket: raise HTTPException(status_code=404)
+    if ticket.client_id != payload.get("sub") and payload.get("role") != "admin":
         raise HTTPException(status_code=403)
     ticket_service.clear_messages(db, ticket_id)
+    log_activity(db, payload.get("sub"), "delete", "ticket_messages", ticket_id, "Historique efface")
     return {"message": "Historique supprime"}
+
+@router.delete("/{ticket_id}/messages/{msg_id}")
+def delete_message(ticket_id: str, msg_id: str, payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    if payload.get("role") not in ["technician", "admin"]: raise HTTPException(status_code=403)
+    ticket_service.delete_message(db, msg_id)
+    log_activity(db, payload.get("sub"), "delete", "message", msg_id, "Message supprime")
+    return {"message": "Message supprime"}
 
 @technician_router.get("")
 def tech_tickets(payload: dict = Depends(get_current_user), search: str = Query(None), status: str = Query(None), priority: str = Query(None), db: Session = Depends(get_db)):
@@ -79,7 +81,7 @@ def tech_tickets(payload: dict = Depends(get_current_user), search: str = Query(
 @technician_router.put("/{ticket_id}/assign")
 def assign_ticket(ticket_id: str, payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     result = ticket_service.assign_technician(db, ticket_id, payload.get("sub"))
-    cache.delete("dashboard:admin_stats")
+    log_activity(db, payload.get("sub"), "assign", "ticket", ticket_id, "Ticket assigne")
     return result
 
 @technician_router.put("/{ticket_id}/status")
@@ -87,30 +89,6 @@ def change_status(ticket_id: str, status: str, db: Session = Depends(get_db)):
     ticket = ticket_service.update_ticket_status(db, ticket_id, status)
     if status == 'resolved' and ticket:
         client = db.query(User).filter(User.id == ticket.client_id).first()
-        if client:
-            email_service.send_ticket_resolved(client.email, ticket.subject, str(ticket.id))
-    cache.delete("dashboard:admin_stats")
+        if client: email_service.send_ticket_resolved(client.email, ticket.subject, str(ticket.id))
+    log_activity(db, "technician", "status_change", "ticket", ticket_id, f"Statut: {status}")
     return ticket
-
-@router.delete("/{ticket_id}/messages/{msg_id}")
-def delete_message(ticket_id: str, msg_id: str, payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
-    ticket = ticket_service.get_ticket_detail(db, ticket_id)
-    if not ticket:
-        raise HTTPException(status_code=404)
-    # Seul le technicien assigpeut supprimer les messages
-    if payload.get("role") not in ["technician", "admin"]:
-        raise HTTPException(status_code=403)
-    ticket_service.delete_message(db, msg_id)
-    return {"message": "Supprime"}
-
-@router.put("/{ticket_id}/messages/{msg_id}")
-def update_message(ticket_id: str, msg_id: str, data: MessageCreate, payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
-    msg = db.query(TicketMessage).filter(TicketMessage.id == msg_id).first()
-    if not msg:
-        raise HTTPException(status_code=404)
-    # Seul l'auteur peut modifier son message
-    if msg.sender_id != payload.get("sub"):
-        raise HTTPException(status_code=403, detail="Vous ne pouvez modifier que vos propres messages")
-    msg.message = data.message
-    db.commit()
-    return {"message": "Modifie"}

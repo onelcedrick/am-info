@@ -5,6 +5,7 @@ from ..database import get_db
 from ..models import User
 from . import service as order_service
 from ..emails import service as email_service
+from ..logs.service import log_activity
 from ..auth.service import decode_token
 from ..redis_client import cache
 
@@ -22,18 +23,13 @@ def get_current_user(authorization: str = Header(None)):
 @router.post("")
 def create_order(payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     order, error = order_service.create_order(db, payload.get("sub"))
-    if error:
-        raise HTTPException(status_code=400, detail=error)
-    
+    if error: raise HTTPException(status_code=400, detail=error)
     user = db.query(User).filter(User.id == payload.get("sub")).first()
     if user:
         items = [{"name": item.product_name, "quantity": item.quantity, "total": float(item.unit_price) * item.quantity} for item in order.items]
         email_service.send_order_confirmation(user.email, str(order.id), float(order.total_amount), items)
-    
-    # Invalider le cache dashboard
-    cache.delete("dashboard:admin_stats")
-    cache.delete("products:popular")
-    
+    log_activity(db, payload.get("sub"), "create", "order", str(order.id), f"Commande: {float(order.total_amount):,.0f} Ar")
+    cache.delete("dashboard:admin_stats"); cache.delete("products:popular")
     return {"message": "Commande creee", "order_id": order.id}
 
 @router.get("")
@@ -43,20 +39,15 @@ def my_orders(payload: dict = Depends(get_current_user), db: Session = Depends(g
 @router.get("/{order_id}")
 def order_detail(order_id: str, db: Session = Depends(get_db)):
     order = order_service.get_order_detail(db, order_id)
-    if not order:
-        raise HTTPException(status_code=404)
+    if not order: raise HTTPException(status_code=404)
     return order
 
 @router.delete("/{order_id}")
 def cancel_order(order_id: str, payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     success, error = order_service.cancel_order(db, order_id, payload.get("sub"))
-    if error:
-        raise HTTPException(status_code=400, detail=error)
-    
-    # Invalider le cache dashboard
-    cache.delete("dashboard:admin_stats")
-    cache.delete("products:popular")
-    
+    if error: raise HTTPException(status_code=400, detail=error)
+    log_activity(db, payload.get("sub"), "delete", "order", order_id, "Commande annulee")
+    cache.delete("dashboard:admin_stats"); cache.delete("products:popular")
     return {"message": "Commande annulee"}
 
 @admin_router.get("")
@@ -66,9 +57,6 @@ def all_orders(db: Session = Depends(get_db)):
 @admin_router.put("/{order_id}/status")
 def change_status(order_id: str, status: str, db: Session = Depends(get_db)):
     result = order_service.update_order_status(db, order_id, status)
-    
-    # Invalider le cache dashboard
-    cache.delete("dashboard:admin_stats")
-    cache.delete("products:popular")
-    
+    log_activity(db, "admin", "status_change", "order", order_id, f"Nouveau statut: {status}")
+    cache.delete("dashboard:admin_stats"); cache.delete("products:popular")
     return result

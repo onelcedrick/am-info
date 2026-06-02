@@ -2,9 +2,8 @@
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../contexts/ThemeContext';
-import { IconDashboard, IconPackage, IconLogout, IconSun, IconMoon, IconOrders, IconUser } from '../components/Icons';
+import { IconDashboard, IconPackage, IconLogout, IconSun, IconMoon, IconOrders, IconUser, IconLogs } from '../components/Icons';
 
-// Icones specifiques admin
 const IconDiscount = ({ size = 16 }) => (
   <svg width={size} height={size} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
@@ -57,20 +56,17 @@ export default function AdminLayout() {
           <Link to="/admin/invoices" className="py-2.5 px-3 rounded-lg hover:bg-gray-800 transition text-sm flex items-center gap-3 text-gray-300 hover:text-white">
             <IconInvoice size={18} /> Factures
           </Link>
+          <Link to="/admin/logs" className="py-2.5 px-3 rounded-lg hover:bg-gray-800 transition text-sm flex items-center gap-3 text-gray-300 hover:text-white">
+            <IconLogs size={18} /> Logs
+          </Link>
         </nav>
         <div className="p-4 border-t border-gray-800">
           <div className="flex items-center gap-3 mb-3">
-            {user?.avatar_url ? (
-              <img src={user.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
-                <IconUser size={16} />
-              </div>
-            )}
+            {user?.avatar_url ? <img src={user.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" /> :
+              <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center"><IconUser size={16} /></div>}
             <p className="text-xs text-gray-400">{user?.full_name}</p>
           </div>
-          <button onClick={() => { logout(); navigate('/login'); }} 
-            className="w-full bg-red-600/20 text-red-400 py-2 rounded-lg hover:bg-red-600/30 transition text-xs flex items-center justify-center gap-2 border border-red-600/30">
+          <button onClick={() => { logout(); navigate('/login'); }} className="w-full bg-red-600/20 text-red-400 py-2 rounded-lg hover:bg-red-600/30 transition text-xs flex items-center justify-center gap-2 border border-red-600/30">
             <IconLogout size={14} /> Deconnexion
           </button>
         </div>
