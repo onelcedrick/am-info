@@ -2,7 +2,8 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { useAuth } from './contexts/AuthContext';
+import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import ClientLayout from './layouts/ClientLayout';
@@ -24,11 +25,12 @@ import ProductManagePage from './pages/admin/ProductManagePage';
 import DiscountPage from './pages/admin/DiscountPage';
 import OrdersManagePage from './pages/admin/OrdersManagePage';
 import InvoicePage from './pages/admin/InvoicePage';
+import ClientsPage from './pages/admin/ClientsPage';
+import TransactionsPage from './pages/admin/TransactionsPage';
 import TechnicianDashboard from './pages/technician/DashboardPage';
 import TicketListPage from './pages/technician/TicketListPage';
 import PartRequestsPage from './pages/technician/PartRequestsPage';
 
-// Composant qui surveille la navigation et bloque les acces non autorises
 function NavigationGuard() {
   const { isAuthenticated } = useAuth();
   const location = useLocation();
@@ -38,27 +40,17 @@ function NavigationGuard() {
     const token = localStorage.getItem('token');
     const protectedPaths = ['/client', '/admin', '/technician'];
     const isProtectedPath = protectedPaths.some(path => location.pathname.startsWith(path));
-    
-    // Si on est sur une page protegee sans token, rediriger
     if (isProtectedPath && !token && !isAuthenticated) {
       navigate('/login', { replace: true });
     }
-    
-    // Bloquer le retour arriere vers des pages protegees apres deconnexion
     const handlePopState = () => {
       const currentToken = localStorage.getItem('token');
       if (isProtectedPath && !currentToken) {
-        // Empecher le retour et rediriger
         window.history.pushState(null, '', '/login');
         navigate('/login', { replace: true });
       }
     };
-    
-    // Pousser un etat pour pouvoir intercepter le retour
-    if (isProtectedPath) {
-      window.history.pushState(null, '', location.pathname);
-    }
-    
+    if (isProtectedPath) window.history.pushState(null, '', location.pathname);
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [location.pathname, isAuthenticated, navigate]);
@@ -70,10 +62,7 @@ function AppRoutes() {
   return (
     <BrowserRouter>
       <NavigationGuard />
-      <Toaster position="top-right" toastOptions={{
-        duration: 3000,
-        style: { background: '#1a73e8', color: '#fff', borderRadius: '12px', padding: '12px 16px', fontSize: '14px' }
-      }} />
+      <Toaster position="top-right" toastOptions={{ duration: 3000, style: { background: '#1a73e8', color: '#fff', borderRadius: '12px', padding: '12px 16px', fontSize: '14px' } }} />
       <Routes>
         <Route path="/" element={<ClientLayout />}>
           <Route index element={<HomePage />} />
@@ -100,6 +89,8 @@ function AppRoutes() {
           <Route path="discounts" element={<DiscountPage />} />
           <Route path="orders" element={<OrdersManagePage />} />
           <Route path="invoices" element={<InvoicePage />} />
+          <Route path="clients" element={<ClientsPage />} />
+          <Route path="transactions" element={<TransactionsPage />} />
         </Route>
         <Route path="/technician" element={<ProtectedRoute allowedRoles={['technician']}><TechnicianLayout /></ProtectedRoute>}>
           <Route index element={<TechnicianDashboard />} />

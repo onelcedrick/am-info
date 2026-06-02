@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from typing import Optional
 from uuid import UUID
 from datetime import datetime
@@ -20,6 +20,7 @@ class UserResponse(BaseModel):
     full_name: str
     role: str
     is_active: bool
+    avatar_url: Optional[str] = None
     class Config: from_attributes = True
 
 class ProductCreate(BaseModel):
