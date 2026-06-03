@@ -11,7 +11,5 @@ httpx==0.25.1
 websockets==12.0
 redis==5.0.1
 python-dotenv==1.0.0
-cloudinary==1.37.0
-pillow==10.1.0
-numpy==1.26.2
+numpy==1.26.4
 reportlab==4.0.8
