@@ -24,6 +24,8 @@ export default function TicketPage() {
   const [showForm, setShowForm] = useState(false);
   const [typing, setTyping] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState(null);
   const [preview, setPreview] = useState(null);
   const [botThinking, setBotThinking] = useState(false);
   const [showCall, setShowCall] = useState(false);
@@ -63,41 +65,30 @@ export default function TicketPage() {
 
   useEffect(() => {
     if (!token) return;
-    
     let ws = null;
-    
     try {
       ws = new WebSocket(`${WS_URL}?token=${token}`);
       wsRef.current = ws;
-      
       ws.onopen = () => console.log('WebSocket client connecte');
-      
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
           if (data.action === 'call_start' || data.type === 'incoming_call') {
-            setIncomingCall(data);
-            setShowCall(true);
+            setIncomingCall(data); setShowCall(true);
           }
           if (data.action === 'call_end' || data.action === 'call_reject') {
-            setIncomingCall(null);
-            setShowCall(false);
+            setIncomingCall(null); setShowCall(false);
           }
           if (data.type === 'typing' && data.ticket_id === ticketId) setTyping(data.is_typing);
           if (data.type === 'new_message' && data.ticket_id === ticketId) loadMessages();
         } catch (e) {}
       };
-      
       ws.onerror = (err) => console.error('WebSocket erreur:', err);
       ws.onclose = () => console.log('WebSocket ferme');
-      
     } catch (e) {
       console.error('Erreur creation WebSocket:', e);
     }
-    
-    return () => {
-      if (ws && ws.readyState === WebSocket.OPEN) ws.close();
-    };
+    return () => { if (ws && ws.readyState === WebSocket.OPEN) ws.close(); };
   }, [token, ticketId]);
 
   const send = async () => {
@@ -114,7 +105,7 @@ export default function TicketPage() {
     const msgText = text;
     setText(''); setBotThinking(true); setAutoScroll(true);
     try {
-      const res = await api.post('/chatbot/ask', { message: msgText, ticket_id: ticketId });
+      const res = await api.post('/recommendations/chatbot/ask', { message: msgText, ticket_id: ticketId });
       setMessages(prev => [...prev, { message: msgText, sender_id: userId, created_at: new Date().toISOString() }]);
       setTimeout(() => {
         setMessages(prev => [...prev, { message: res.data.response, sender_id: 'bot', is_from_bot: true, created_at: new Date().toISOString() }]);
@@ -128,13 +119,11 @@ export default function TicketPage() {
 
   const clearHistory = async () => {
     if (!ticketId) return;
-    if (!confirm('Effacer tout l\'historique de cette conversation ?')) return;
+    if (!confirm('Effacer tout l\'historique ?')) return;
     try {
       await api.delete(`/tickets/${ticketId}/messages`);
-      toast.success('Historique efface');
-      setMessages([]);
-      loadMessages();
-    } catch (err) { toast.error('Erreur lors de la suppression'); }
+      toast.success('Historique efface'); setMessages([]); loadMessages();
+    } catch (err) { toast.error('Erreur'); }
   };
 
   const handleTyping = (e) => setText(e.target.value);
@@ -142,9 +131,29 @@ export default function TicketPage() {
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    setAnalysisResult(null);
     const reader = new FileReader();
     reader.onload = (ev) => setPreview(ev.target.result);
     reader.readAsDataURL(file);
+  };
+
+  const analyzePhoto = async () => {
+    const file = fileInputRef.current?.files[0];
+    if (!file) return;
+    setAnalyzing(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await api.post('/recommendations/analyze-image', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setAnalysisResult(res.data);
+      toast.success(`Piece identifiee : ${res.data.name} (${res.data.confidence}%)`);
+    } catch (err) {
+      toast.error('Erreur lors de l\'analyse IA');
+    } finally {
+      setAnalyzing(false);
+    }
   };
 
   const uploadPhoto = async () => {
@@ -153,12 +162,27 @@ export default function TicketPage() {
     setUploading(true);
     const formData = new FormData();
     formData.append('file', file);
+    
+    // Ajouter le resultat d'analyse dans le message si disponible
+    let messageText = 'Photo de la piece';
+    if (analysisResult) {
+      messageText = `📸 Photo analysee: ${analysisResult.name} (${analysisResult.confidence}%)\n🔍 Diagnostic: ${analysisResult.diagnostic}`;
+    }
+    
     try {
+      // Uploader la photo
       await api.post(`/tickets/${ticketId}/upload`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      
+      // Envoyer le message avec l'analyse
+      if (analysisResult) {
+        await api.post(`/tickets/${ticketId}/messages`, { message: messageText });
+      }
+      
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({ action: 'message', ticket_id: ticketId }));
       }
-      setPreview(null); fileInputRef.current.value = ''; setAutoScroll(true); loadMessages();
+      setPreview(null); setAnalysisResult(null);
+      fileInputRef.current.value = ''; setAutoScroll(true); loadMessages();
     } catch (err) { toast.error('Erreur envoi photo'); }
     finally { setUploading(false); }
   };
@@ -166,8 +190,7 @@ export default function TicketPage() {
   const createTicket = async (e) => {
     e.preventDefault();
     await api.post('/tickets', { subject, description: desc, priority: 'normal' });
-    setSubject(''); setDesc(''); setShowForm(false);
-    loadTickets();
+    setSubject(''); setDesc(''); setShowForm(false); loadTickets();
   };
 
   const getMessageStyle = (m) => {
@@ -189,10 +212,7 @@ export default function TicketPage() {
         <div className="fixed top-4 right-4 bg-green-500 text-white rounded-2xl shadow-2xl p-6 z-50 animate-bounce">
           <div className="flex items-center gap-4">
             <span className="text-4xl">+</span>
-            <div>
-              <p className="font-bold text-lg">Appel entrant</p>
-              <p className="text-green-100 text-sm">Le technicien vous appelle</p>
-            </div>
+            <div><p className="font-bold text-lg">Appel entrant</p><p className="text-green-100 text-sm">Le technicien vous appelle</p></div>
           </div>
         </div>
       )}
@@ -200,20 +220,12 @@ export default function TicketPage() {
       <div className="flex justify-between mb-6">
         <h1 className="text-2xl font-bold">Maintenance</h1>
         <div className="flex gap-2">
-          <button 
-            onClick={() => {
-              if (!ticket?.technician_id) {
-                toast.error('Aucun technicien assigne');
-                return;
-              }
-              setShowCall(true);
-            }} 
-            className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 transition">
-            Appel
-          </button>
+          <button onClick={() => { if (!ticket?.technician_id) { toast.error('Aucun technicien assigne'); return; } setShowCall(true); }} 
+            className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 transition">Appel</button>
           <button onClick={() => setShowForm(!showForm)} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition">+ Ticket</button>
         </div>
       </div>
+
       {showForm && (
         <form onSubmit={createTicket} className="bg-white rounded-xl shadow p-6 mb-6">
           <input placeholder="Sujet du probleme" value={subject} onChange={e => setSubject(e.target.value)} required className="w-full px-4 py-2 border rounded-lg mb-3" />
@@ -221,6 +233,7 @@ export default function TicketPage() {
           <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded-lg">Creer le ticket</button>
         </form>
       )}
+
       <div className="grid grid-cols-3 gap-6">
         <div className="space-y-2 max-h-[600px] overflow-y-auto">
           {tickets.map(t => (
@@ -231,6 +244,7 @@ export default function TicketPage() {
             </div>
           ))}
         </div>
+
         <div className="col-span-2">
           {ticket ? (
             <div className="bg-white rounded-xl shadow flex flex-col h-[600px]">
@@ -239,6 +253,7 @@ export default function TicketPage() {
                 {typing && <span className="text-xs text-gray-400 animate-pulse">Technicien ecrit...</span>}
                 <button onClick={clearHistory} className="ml-auto text-red-400 hover:text-red-600 text-xs font-semibold">Effacer historique</button>
               </div>
+
               <div ref={messagesContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
                 {!autoScroll && (
                   <div className="sticky top-0 text-center z-10">
@@ -249,11 +264,12 @@ export default function TicketPage() {
                   <div className="flex justify-start">
                     <div className="bg-blue-50 border border-blue-200 p-4 rounded-2xl rounded-bl-md max-w-[80%]">
                       <p className="text-xs font-semibold text-blue-600 mb-1">Assistant AM Info</p>
-                      <p className="text-sm text-gray-700">Bonjour ! Decrivez votre probleme, je vais vous aider.</p>
+                      <p className="text-sm text-gray-700">Bonjour ! Decrivez votre probleme, je vais vous aider. Envoyez une photo pour une analyse IA.</p>
                       <p className="text-xs text-gray-400 mt-2">"ecran noir", "pc lent", "wifi", "commander piece"...</p>
                     </div>
                   </div>
                 )}
+
                 {messages.map((m, i) => {
                   const style = getMessageStyle(m);
                   return (
@@ -268,6 +284,7 @@ export default function TicketPage() {
                     </div>
                   );
                 })}
+
                 {botThinking && (
                   <div className="flex justify-start">
                     <div className="bg-blue-50 border border-blue-200 p-3 rounded-2xl rounded-bl-md">
@@ -280,25 +297,48 @@ export default function TicketPage() {
                     </div>
                   </div>
                 )}
+
                 {typing && (
                   <div className="flex justify-start"><div className="bg-white shadow border px-4 py-2 rounded-full"><span className="text-gray-400 text-sm">Technicien ecrit...</span></div></div>
                 )}
+
+                {/* Preview avec analyse IA */}
                 {preview && (
                   <div className="flex justify-end">
                     <div className="bg-white shadow border rounded-2xl p-3 max-w-[75%]">
                       <img src={preview} alt="Apercu" className="rounded-lg mb-2 max-w-full max-h-48" />
-                      <div className="flex gap-2">
-                        <button onClick={uploadPhoto} disabled={uploading} className="bg-green-600 text-white px-4 py-1 rounded-lg text-sm hover:bg-green-700 disabled:opacity-50">{uploading ? 'Envoi...' : 'Envoyer'}</button>
-                        <button onClick={() => { setPreview(null); fileInputRef.current.value = ''; }} className="bg-gray-300 px-4 py-1 rounded-lg text-sm">Annuler</button>
+                      
+                      {/* Resultat d'analyse */}
+                      {analysisResult && (
+                        <div className="bg-blue-50 rounded-lg p-2 mb-2 text-xs">
+                          <p className="font-bold text-blue-700">{analysisResult.icon} {analysisResult.name}</p>
+                          <p className="text-blue-600">Confiance: {analysisResult.confidence}%</p>
+                          <p className="text-gray-500 mt-1">{analysisResult.diagnostic}</p>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2 flex-wrap">
+                        <button onClick={analyzePhoto} disabled={analyzing}
+                          className="bg-purple-600 text-white px-3 py-1 rounded-lg text-xs hover:bg-purple-700 disabled:opacity-50">
+                          {analyzing ? '🔍 Analyse...' : '🔍 Analyser (IA)'}
+                        </button>
+                        <button onClick={uploadPhoto} disabled={uploading}
+                          className="bg-green-600 text-white px-3 py-1 rounded-lg text-xs hover:bg-green-700 disabled:opacity-50">
+                          {uploading ? 'Envoi...' : '📤 Envoyer'}
+                        </button>
+                        <button onClick={() => { setPreview(null); setAnalysisResult(null); fileInputRef.current.value = ''; }}
+                          className="bg-gray-300 px-3 py-1 rounded-lg text-xs hover:bg-gray-400">Annuler</button>
                       </div>
                     </div>
                   </div>
                 )}
                 <div ref={messagesEndRef} />
               </div>
+
               {(ticket.status === 'resolved' || ticket.status === 'closed') && (
                 <div className="px-4 py-3 border-t bg-gray-50"><Rating ticketId={ticket.id} ticketStatus={ticket.status} /></div>
               )}
+
               <div className="p-4 border-t bg-white">
                 <div className="flex gap-2">
                   <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileSelect} className="hidden" id="file-upload" />
@@ -309,7 +349,7 @@ export default function TicketPage() {
                   <button onClick={askChatbot} className="bg-blue-600 text-white px-4 py-2 rounded-full hover:bg-blue-700 transition text-sm font-semibold whitespace-nowrap">Assistant</button>
                   <button onClick={send} className="bg-gray-700 text-white px-4 py-2 rounded-full hover:bg-gray-800 transition text-sm font-semibold">Envoyer</button>
                 </div>
-                <p className="text-xs text-gray-400 mt-2 text-center">Assistant = IA | Envoyer = technicien</p>
+                <p className="text-xs text-gray-400 mt-2 text-center">Assistant = IA | Envoyer = technicien | + = Photo avec analyse IA</p>
               </div>
             </div>
           ) : (
@@ -321,14 +361,7 @@ export default function TicketPage() {
       </div>
 
       {showCall && ticket && (
-        <VideoCall
-          ws={wsRef.current}
-          ticketId={ticketId}
-          recipientId={ticket.technician_id}
-          userId={userId}
-          userName={user?.full_name}
-          onClose={() => { setShowCall(false); setIncomingCall(null); }}
-        />
+        <VideoCall ws={wsRef.current} ticketId={ticketId} recipientId={ticket.technician_id} userId={userId} userName={user?.full_name} onClose={() => { setShowCall(false); setIncomingCall(null); }} />
       )}
     </div>
   );
