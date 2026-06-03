@@ -11,3 +11,4 @@ httpx
 websockets
 redis
 python-dotenv
+cloudinary
