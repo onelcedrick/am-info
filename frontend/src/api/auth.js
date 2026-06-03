@@ -13,5 +13,5 @@ export const getMe = () => {
 };
 
 export const googleLoginUrl = () => {
-  return 'http://localhost:8000/auth/google/login';
+  return `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/auth/google/login`;
 };
