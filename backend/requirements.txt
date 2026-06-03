@@ -13,3 +13,4 @@ redis
 python-dotenv
 cloudinary
 numpy
+pillow
