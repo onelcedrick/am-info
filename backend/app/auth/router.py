@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
-from fastapi import APIRouter, Depends, HTTPException, Header, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Header, UploadFile, File, Request
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..schemas import UserCreate, UserLogin, Token, UserResponse
+from ..config import settings
 from . import service
-from ..models import User
+from ..models import User, CartItem, Order, Ticket, Wishlist, Rating
 import os
 import uuid
+import httpx
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -41,8 +44,7 @@ def login(data: UserLogin, db: Session = Depends(get_db)):
 def refresh_token(payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == payload.get("sub")).first()
     if not user:
-        raise HTTPException(status_code=404, detail="Utilisateur introuvable")
-    # Generer un nouveau token
+        raise HTTPException(status_code=404)
     token = service.create_access_token(str(user.id), user.role)
     return {"token": token, "user": user}
 
@@ -60,7 +62,7 @@ async def upload_avatar(
     db: Session = Depends(get_db)
 ):
     if not file.content_type or not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Seules les images sont acceptees")
+        raise HTTPException(status_code=400)
     user = db.query(User).filter(User.id == payload.get("sub")).first()
     if not user:
         raise HTTPException(status_code=404)
@@ -78,15 +80,88 @@ async def upload_avatar(
 def delete_account(payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == payload.get("sub")).first()
     if not user:
-        raise HTTPException(status_code=404, detail="Utilisateur introuvable")
-    
-    # Supprimer les donnees liees
+        raise HTTPException(status_code=404)
     db.query(CartItem).filter(CartItem.user_id == user.id).delete()
     db.query(Order).filter(Order.user_id == user.id).delete()
     db.query(Ticket).filter(Ticket.client_id == user.id).delete()
     db.query(Wishlist).filter(Wishlist.user_id == user.id).delete()
     db.query(Rating).filter(Rating.client_id == user.id).delete()
-    
     db.delete(user)
     db.commit()
     return {"message": "Compte supprime definitivement"}
+
+# ============ GOOGLE OAUTH ============
+GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
+GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+GOOGLE_USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo"
+
+@router.get("/google/login")
+async def google_login():
+    if not settings.GOOGLE_CLIENT_ID:
+        return {"message": "Google OAuth non configure"}
+    
+    redirect_uri = f"{settings.BASE_URL}/auth/google/callback"
+    params = {
+        "client_id": settings.GOOGLE_CLIENT_ID,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "access_type": "offline",
+        "prompt": "consent"
+    }
+    url = f"{GOOGLE_AUTH_URL}?{'&'.join(f'{k}={v}' for k, v in params.items())}"
+    return RedirectResponse(url=url)
+
+@router.get("/google/callback")
+async def google_callback(request: Request, db: Session = Depends(get_db)):
+    code = request.query_params.get("code")
+    error = request.query_params.get("error")
+    
+    if error:
+        raise HTTPException(status_code=400, detail=f"Google OAuth erreur: {error}")
+    if not code:
+        raise HTTPException(status_code=400, detail="Code manquant")
+    
+    redirect_uri = f"{settings.BASE_URL}/auth/google/callback"
+    
+    async with httpx.AsyncClient() as client:
+        token_response = await client.post(GOOGLE_TOKEN_URL, data={
+            "client_id": settings.GOOGLE_CLIENT_ID,
+            "client_secret": settings.GOOGLE_CLIENT_SECRET,
+            "code": code,
+            "grant_type": "authorization_code",
+            "redirect_uri": redirect_uri
+        })
+        
+        if token_response.status_code != 200:
+            raise HTTPException(status_code=400, detail="Erreur token Google")
+        
+        token_data = token_response.json()
+        access_token = token_data.get("access_token")
+        
+        user_response = await client.get(GOOGLE_USERINFO_URL, headers={
+            "Authorization": f"Bearer {access_token}"
+        })
+        
+        if user_response.status_code != 200:
+            raise HTTPException(status_code=400, detail="Erreur infos Google")
+        
+        user_info = user_response.json()
+        google_email = user_info.get("email")
+        google_name = user_info.get("name", "Utilisateur Google")
+        google_id = user_info.get("sub")
+        google_picture = user_info.get("picture")
+        
+        if not google_email:
+            raise HTTPException(status_code=400, detail="Email Google manquant")
+        
+        user = service.get_user_by_email(db, google_email)
+        if not user:
+            user = service.create_google_user(db, google_name, google_email, google_id)
+            if google_picture:
+                user.avatar_url = google_picture
+                db.commit()
+        
+        token = service.create_access_token(str(user.id), user.role)
+        frontend_url = f"{settings.FRONTEND_URL}/auth/google/callback?token={token}"
+        return RedirectResponse(url=frontend_url)

@@ -18,3 +18,7 @@ class Settings:
     SMTP_USE_TLS: bool = os.getenv("SMTP_USE_TLS", "True") == "True"
 
 settings = Settings()
+
+class Settings:
+    # ... (garde l'existant)
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
