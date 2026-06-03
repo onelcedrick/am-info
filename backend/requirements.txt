@@ -14,3 +14,4 @@ python-dotenv==1.0.0
 cloudinary==1.37.0
 numpy==1.26.2
 pillow==10.1.0
+reportlab==4.0.8
