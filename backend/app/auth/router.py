@@ -9,7 +9,6 @@ from . import service
 from ..models import User, CartItem, Order, Ticket, Wishlist, Rating
 import os
 import uuid
-import httpx
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -56,22 +55,16 @@ def get_me(payload: dict = Depends(get_current_user), db: Session = Depends(get_
     return user
 
 @router.post("/avatar")
-async def upload_avatar(
-    file: UploadFile = File(...),
-    payload: dict = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
+async def upload_avatar(file: UploadFile = File(...), payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400)
     user = db.query(User).filter(User.id == payload.get("sub")).first()
-    if not user:
-        raise HTTPException(status_code=404)
+    if not user: raise HTTPException(status_code=404)
     ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
     filename = f"avatar_{user.id[:8]}_{uuid.uuid4().hex[:4]}.{ext}"
     filepath = os.path.join(UPLOAD_DIR, filename)
     content = await file.read()
-    with open(filepath, "wb") as f:
-        f.write(content)
+    with open(filepath, "wb") as f: f.write(content)
     user.avatar_url = f"{settings.BASE_URL}/uploads/{filename}"
     db.commit()
     return {"avatar_url": user.avatar_url}
@@ -79,8 +72,7 @@ async def upload_avatar(
 @router.delete("/account")
 def delete_account(payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == payload.get("sub")).first()
-    if not user:
-        raise HTTPException(status_code=404)
+    if not user: raise HTTPException(status_code=404)
     db.query(CartItem).filter(CartItem.user_id == user.id).delete()
     db.query(Order).filter(Order.user_id == user.id).delete()
     db.query(Ticket).filter(Ticket.client_id == user.id).delete()
@@ -88,9 +80,9 @@ def delete_account(payload: dict = Depends(get_current_user), db: Session = Depe
     db.query(Rating).filter(Rating.client_id == user.id).delete()
     db.delete(user)
     db.commit()
-    return {"message": "Compte supprime definitivement"}
+    return {"message": "Compte supprime"}
 
-# ============ GOOGLE OAUTH ============
+# ============ GOOGLE OAUTH SIMPLIFIE ============
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo"
@@ -99,69 +91,52 @@ GOOGLE_USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo"
 async def google_login():
     if not settings.GOOGLE_CLIENT_ID:
         return {"message": "Google OAuth non configure"}
-    
     redirect_uri = f"{settings.BASE_URL}/auth/google/callback"
-    params = {
-        "client_id": settings.GOOGLE_CLIENT_ID,
-        "redirect_uri": redirect_uri,
-        "response_type": "code",
-        "scope": "openid email profile",
-        "access_type": "offline",
-        "prompt": "consent"
-    }
-    url = f"{GOOGLE_AUTH_URL}?{'&'.join(f'{k}={v}' for k, v in params.items())}"
+    url = f"{GOOGLE_AUTH_URL}?client_id={settings.GOOGLE_CLIENT_ID}&redirect_uri={redirect_uri}&response_type=code&scope=openid%20email%20profile&access_type=offline&prompt=consent"
     return RedirectResponse(url=url)
 
 @router.get("/google/callback")
-async def google_callback(request: Request, db: Session = Depends(get_db)):
-    code = request.query_params.get("code")
-    error = request.query_params.get("error")
-    
-    if error:
-        raise HTTPException(status_code=400, detail=f"Google OAuth erreur: {error}")
-    if not code:
-        raise HTTPException(status_code=400, detail="Code manquant")
-    
+async def google_callback(code: str, db: Session = Depends(get_db)):
     redirect_uri = f"{settings.BASE_URL}/auth/google/callback"
     
-    async with httpx.AsyncClient() as client:
-        token_response = await client.post(GOOGLE_TOKEN_URL, data={
-            "client_id": settings.GOOGLE_CLIENT_ID,
-            "client_secret": settings.GOOGLE_CLIENT_SECRET,
-            "code": code,
-            "grant_type": "authorization_code",
-            "redirect_uri": redirect_uri
-        })
-        
-        if token_response.status_code != 200:
-            raise HTTPException(status_code=400, detail="Erreur token Google")
-        
-        token_data = token_response.json()
-        access_token = token_data.get("access_token")
-        
-        user_response = await client.get(GOOGLE_USERINFO_URL, headers={
-            "Authorization": f"Bearer {access_token}"
-        })
-        
-        if user_response.status_code != 200:
-            raise HTTPException(status_code=400, detail="Erreur infos Google")
-        
-        user_info = user_response.json()
-        google_email = user_info.get("email")
-        google_name = user_info.get("name", "Utilisateur Google")
-        google_id = user_info.get("sub")
-        google_picture = user_info.get("picture")
-        
-        if not google_email:
-            raise HTTPException(status_code=400, detail="Email Google manquant")
-        
-        user = service.get_user_by_email(db, google_email)
-        if not user:
-            user = service.create_google_user(db, google_name, google_email, google_id)
-            if google_picture:
-                user.avatar_url = google_picture
-                db.commit()
-        
-        token = service.create_access_token(str(user.id), user.role)
-        frontend_url = f"{settings.FRONTEND_URL}/auth/google/callback?token={token}"
-        return RedirectResponse(url=frontend_url)
+    try:
+        import httpx
+        async with httpx.AsyncClient() as client:
+            # Echanger le code contre un token
+            token_res = await client.post(GOOGLE_TOKEN_URL, data={
+                "client_id": settings.GOOGLE_CLIENT_ID,
+                "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                "code": code,
+                "grant_type": "authorization_code",
+                "redirect_uri": redirect_uri
+            })
+            token_data = token_res.json()
+            access_token = token_data.get("access_token")
+            
+            if not access_token:
+                return {"error": "Token Google non obtenu", "details": token_data}
+            
+            # Infos utilisateur
+            user_res = await client.get(GOOGLE_USERINFO_URL, headers={"Authorization": f"Bearer {access_token}"})
+            user_info = user_res.json()
+            
+            google_email = user_info.get("email")
+            google_name = user_info.get("name", "Utilisateur Google")
+            google_id = user_info.get("sub")
+            google_picture = user_info.get("picture")
+            
+            if not google_email:
+                return {"error": "Email manquant"}
+            
+            user = service.get_user_by_email(db, google_email)
+            if not user:
+                user = service.create_google_user(db, google_name, google_email, google_id)
+                if google_picture:
+                    user.avatar_url = google_picture
+                    db.commit()
+            
+            token = service.create_access_token(str(user.id), user.role)
+            frontend_url = f"{settings.FRONTEND_URL}/auth/google/callback?token={token}"
+            return RedirectResponse(url=frontend_url)
+    except Exception as e:
+        return {"error": str(e)}
