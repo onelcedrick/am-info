@@ -25,6 +25,7 @@ import CartPage from './pages/client/CartPage';
 import OrdersPage from './pages/client/OrdersPage';
 import TicketPage from './pages/client/TicketPage';
 import MapPage from './pages/client/MapPage';
+// import ProfilePage from './pages/client/ProfilePage';
 import AdminDashboard from './pages/admin/DashboardPage';
 import ProductManagePage from './pages/admin/ProductManagePage';
 import DiscountPage from './pages/admin/DiscountPage';
@@ -38,6 +39,8 @@ import TicketListPage from './pages/technician/TicketListPage';
 import PartRequestsPage from './pages/technician/PartRequestsPage';
 import UsersPage from './pages/admin/UsersPage';
 import ProfilePage from './pages/ProfilePage';
+import AdminProfilePage from './pages/admin/ProfilePage';
+
 
 function NavigationGuard() {
   const { isAuthenticated } = useAuth();
@@ -99,6 +102,7 @@ function AppRoutes() {
             <Route path="logs" element={<PageTransition><LogsPage /></PageTransition>} />
             <Route path="users" element={<PageTransition><UsersPage /></PageTransition>} />
             <Route path="profile" element={<PageTransition><ProfilePage /></PageTransition>} />
+            <Route path="profile" element={<PageTransition><AdminProfilePage /></PageTransition>} />
           </Route>
           
           {/* Technicien */}

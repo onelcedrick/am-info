@@ -88,15 +88,16 @@ export default function AdminLayout() {
           ))}
         </nav>
 
+        {/* Footer avec lien profil */}
         <div className="p-3 border-t border-gray-800">
-          <div className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'} mb-3`}>
+          <Link to="/admin/profile" className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'} mb-3 hover:opacity-80 transition`}>
             {user?.avatar_url ? (
               <img src={user.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
             ) : (
               <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0"><IconUser size={16} /></div>
             )}
             {!collapsed && <p className="text-xs text-gray-400 truncate">{user?.full_name}</p>}
-          </div>
+          </Link>
           <button onClick={() => { logout(); navigate('/login'); }} 
             className={`w-full bg-red-600/20 text-red-400 py-2 rounded-lg hover:bg-red-600/30 transition text-xs flex items-center justify-center gap-2 border border-red-600/30 ${collapsed ? 'px-2' : 'px-3'}`}
             title="Déconnexion">

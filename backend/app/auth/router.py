@@ -171,3 +171,15 @@ def update_profile(data: dict, payload: dict = Depends(get_current_user), db: Se
         user.full_name = full_name
     db.commit()
     return {"message": "Profil mis à jour", "user": {"id": str(user.id), "email": user.email, "full_name": user.full_name, "role": user.role}}
+
+@router.put("/profile")
+def update_profile(data: dict, payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == payload.get("sub")).first()
+    if not user:
+        raise HTTPException(status_code=404)
+    
+    if data.get("full_name"):
+        user.full_name = data["full_name"]
+    
+    db.commit()
+    return {"message": "Profil mis à jour", "user": {"id": str(user.id), "email": user.email, "full_name": user.full_name, "role": user.role, "avatar_url": user.avatar_url}}
