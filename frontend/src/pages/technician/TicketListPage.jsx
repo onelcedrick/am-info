@@ -48,7 +48,9 @@ export default function TicketListPage() {
     if (!selectedTicket) return;
     api.get(`/tickets/${selectedTicket.id}`).then(r => {
       setMessages(r.data.messages || []);
-      if (r.data.sla) setSelectedTicket(prev => ({ ...prev, sla: r.data.sla }));
+      if (r.data.sla) {
+        setSelectedTicket(prev => ({ ...prev, sla: r.data.sla }));
+      }
     });
   };
 
@@ -118,8 +120,18 @@ export default function TicketListPage() {
 
   const scrollToBottom = () => { setAutoScroll(true); messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); };
 
-  const getSlaColor = (color) => { switch (color) { case 'red': return 'bg-red-500'; case 'orange': return 'bg-orange-500'; case 'yellow': return 'bg-yellow-500'; default: return 'bg-green-500'; } };
-  const getSlaBgColor = (color) => { switch (color) { case 'red': return 'bg-red-50 text-red-700 border-red-200'; case 'orange': return 'bg-orange-50 text-orange-700 border-orange-200'; case 'yellow': return 'bg-yellow-50 text-yellow-700 border-yellow-200'; default: return 'bg-green-50 text-green-700 border-green-200'; } };
+  const getSlaColor = (color) => {
+    switch (color) { case 'red': return 'bg-red-500'; case 'orange': return 'bg-orange-500'; case 'yellow': return 'bg-yellow-500'; default: return 'bg-green-500'; }
+  };
+
+  const getSlaBgColor = (color) => {
+    switch (color) {
+      case 'red': return 'bg-red-50 text-red-700 border-red-200';
+      case 'orange': return 'bg-orange-50 text-orange-700 border-orange-200';
+      case 'yellow': return 'bg-yellow-50 text-yellow-700 border-yellow-200';
+      default: return 'bg-green-50 text-green-700 border-green-200';
+    }
+  };
 
   const priorityLabels = { low: 'Faible', normal: 'Normal', high: 'Haute', urgent: 'Urgent' };
   const priorityIcons = { low: '🟢', normal: '🔵', high: '🟠', urgent: '🔴' };
@@ -127,8 +139,15 @@ export default function TicketListPage() {
   const statusLabels = { open: 'Ouvert', assigned: 'Assigné', in_progress: 'En cours', resolved: 'Résolu', closed: 'Fermé' };
   const statusColors = { open: 'bg-yellow-100 text-yellow-800', assigned: 'bg-blue-100 text-blue-800', in_progress: 'bg-purple-100 text-purple-800', resolved: 'bg-green-100 text-green-800', closed: 'bg-gray-100 text-gray-800' };
 
-  const selectTicket = (ticket) => { setSelectedTicket(ticket); setAutoScroll(true); setShowMobileChat(true); };
-  const backToList = () => { setShowMobileChat(false); };
+  const selectTicket = (ticket) => {
+    setSelectedTicket(ticket);
+    setAutoScroll(true);
+    setShowMobileChat(true);
+  };
+
+  const backToList = () => {
+    setShowMobileChat(false);
+  };
 
   if (loading) return <div><h1 className="text-xl font-bold mb-4">Tickets</h1><p className="text-gray-400">Chargement...</p></div>;
 
@@ -136,6 +155,7 @@ export default function TicketListPage() {
     <div className="h-full flex flex-col">
       {Modal}
       
+      {/* Header + Filtres */}
       <div className="flex-shrink-0 space-y-3 mb-4">
         <h1 className="text-xl md:text-2xl font-bold">Tickets ({tickets.length})</h1>
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 flex gap-2 flex-wrap">
@@ -157,7 +177,6 @@ export default function TicketListPage() {
               </div>
             ))}
           </div>
-
           <div className="h-full">
             {selectedTicket ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-full">
@@ -217,8 +236,17 @@ export default function TicketListPage() {
                   <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50">
                     {messages.map((m, i) => {
                       const isMine = String(m.sender_id) === String(userId);
+                      const isBot = m.is_from_bot || String(m.sender_id) === 'bot';
                       const style = getMessageStyle(m);
-                      return <div key={i} className={`flex ${style.align}`}><div className={`max-w-[85%] p-2.5 rounded-2xl ${style.bg}`}>{m.attachment_url ? <a href={m.attachment_url} target="_blank" rel="noopener noreferrer"><img src={m.attachment_url} alt="" className="rounded-lg mb-1 max-w-full" /></a> : <p className="text-sm">{m.message}</p>}<p className="text-[10px] mt-1 opacity-60">{new Date(m.created_at).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})}</p></div>;
+                      return (
+                        <div key={i} className={`flex ${style.align}`}>
+                          <div className={`max-w-[85%] p-2.5 rounded-2xl ${style.bg}`}>
+                            {style.label && <p className={`text-[10px] font-semibold mb-1 ${isBot ? 'text-blue-600' : 'text-gray-500'}`}>{style.label}</p>}
+                            {m.attachment_url ? <a href={m.attachment_url} target="_blank" rel="noopener noreferrer"><img src={m.attachment_url} alt="" className="rounded-lg mb-1 max-w-full" /></a> : <p className="text-sm">{m.message}</p>}
+                            <p className="text-[10px] mt-1 opacity-60">{new Date(m.created_at).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})}</p>
+                          </div>
+                        </div>
+                      );
                     })}
                   </div>
                   <div className="p-2 border-t flex gap-2 bg-white flex-shrink-0">
