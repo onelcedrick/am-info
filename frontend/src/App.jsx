@@ -37,6 +37,7 @@ import LogsPage from './pages/admin/LogsPage';
 import TechnicianDashboard from './pages/technician/DashboardPage';
 import TicketListPage from './pages/technician/TicketListPage';
 import PartRequestsPage from './pages/technician/PartRequestsPage';
+import UsersPage from './pages/admin/UsersPage';
 
 function NavigationGuard() {
   const { isAuthenticated } = useAuth();
@@ -96,6 +97,7 @@ function AppRoutes() {
             <Route path="clients" element={<PageTransition><ClientsPage /></PageTransition>} />
             <Route path="transactions" element={<PageTransition><TransactionsPage /></PageTransition>} />
             <Route path="logs" element={<PageTransition><LogsPage /></PageTransition>} />
+            <Route path="users" element={<PageTransition><UsersPage /></PageTransition>} />
           </Route>
           
           {/* Technicien */}

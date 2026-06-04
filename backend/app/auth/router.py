@@ -140,3 +140,27 @@ async def google_callback(code: str, db: Session = Depends(get_db)):
             return RedirectResponse(url=frontend_url)
     except Exception as e:
         return {"error": str(e)}
+
+# Admin : créer un compte technicien
+@router.post("/admin/create-user")
+def admin_create_user(data: dict, payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Réservé aux administrateurs")
+    
+    email = data.get("email")
+    full_name = data.get("full_name")
+    password = data.get("password")
+    role = data.get("role", "technician")
+    
+    if not email or not full_name or not password:
+        raise HTTPException(status_code=400, detail="Email, nom et mot de passe requis")
+    
+    if role not in ["technician", "admin"]:
+        raise HTTPException(status_code=400, detail="Rôle invalide")
+    
+    existing = service.get_user_by_email(db, email)
+    if existing:
+        raise HTTPException(status_code=400, detail="Cet email est déjà utilisé")
+    
+    user = service.create_user(db, full_name, email, password, role)
+    return {"message": f"Compte {role} créé avec succès", "user": {"id": str(user.id), "email": user.email, "full_name": user.full_name, "role": user.role}}

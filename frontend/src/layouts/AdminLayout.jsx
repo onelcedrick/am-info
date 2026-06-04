@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../contexts/ThemeContext';
-import { IconDashboard, IconPackage, IconLogout, IconSun, IconMoon, IconOrders, IconUser, IconLogs } from '../components/Icons';
+import { IconDashboard, IconPackage, IconLogout, IconSun, IconMoon, IconOrders, IconUser, IconLogs, IconPlus } from '../components/Icons';
 
 const IconDiscount = ({ size = 16 }) => (
   <svg width={size} height={size} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -51,85 +51,55 @@ export default function AdminLayout() {
     { to: '/admin/orders', icon: <IconOrders size={20} />, label: 'Commandes' },
     { to: '/admin/transactions', icon: <IconTransaction size={20} />, label: 'Transactions' },
     { to: '/admin/clients', icon: <IconUser size={20} />, label: 'Clients' },
+    { to: '/admin/users', icon: <IconPlus size={20} />, label: 'Utilisateurs' },
     { to: '/admin/invoices', icon: <IconInvoice size={20} />, label: 'Factures' },
     { to: '/admin/logs', icon: <IconLogs size={20} />, label: 'Logs' },
   ];
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
-      {/* Overlay mobile */}
       {mobileOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
-          onClick={() => setMobileOpen(false)}
-        />
+        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setMobileOpen(false)} />
       )}
 
-      {/* Sidebar */}
       <aside className={`
         ${sidebarWidth} bg-gray-900 text-white flex flex-col flex-shrink-0 transition-all duration-300
         fixed md:relative z-50 h-full
         ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
-        {/* Header */}
         <div className="p-4 flex items-center justify-between border-b border-gray-800">
           {!collapsed && <h2 className="text-lg font-bold tracking-tight truncate">Administration</h2>}
           <div className="flex items-center gap-1">
-            {/* Bouton collapse desktop */}
-            <button 
-              onClick={() => setCollapsed(!collapsed)}
-              className="hidden md:block text-gray-400 hover:text-white transition p-1"
-              title={collapsed ? 'Déplier' : 'Replier'}
-            >
+            <button onClick={() => setCollapsed(!collapsed)} className="hidden md:block text-gray-400 hover:text-white transition p-1" title={collapsed ? 'Déplier' : 'Replier'}>
               <IconChevronLeft size={18} className={`transition-transform ${collapsed ? 'rotate-180' : ''}`} />
             </button>
-            {/* Bouton fermer mobile */}
-            <button 
-              onClick={() => setMobileOpen(false)}
-              className="md:hidden text-gray-400 hover:text-white transition p-1"
-            >
-              ✕
-            </button>
+            <button onClick={() => setMobileOpen(false)} className="md:hidden text-gray-400 hover:text-white transition p-1">✕</button>
           </div>
         </div>
 
-        {/* Navigation */}
         <nav className="flex flex-col flex-1 px-2 py-2 space-y-0.5 overflow-y-auto">
           {navItems.map(item => (
-            <Link
-              key={item.to}
-              to={item.to}
-              onClick={() => setMobileOpen(false)}
-              className={`py-2.5 px-3 rounded-lg hover:bg-gray-800 transition text-sm flex items-center gap-3 text-gray-300 hover:text-white ${
-                collapsed ? 'justify-center' : ''
-              }`}
-              title={collapsed ? item.label : ''}
-            >
+            <Link key={item.to} to={item.to} onClick={() => setMobileOpen(false)}
+              className={`py-2.5 px-3 rounded-lg hover:bg-gray-800 transition text-sm flex items-center gap-3 text-gray-300 hover:text-white ${collapsed ? 'justify-center' : ''}`}
+              title={collapsed ? item.label : ''}>
               <span className="flex-shrink-0">{item.icon}</span>
               {!collapsed && <span className="truncate">{item.label}</span>}
             </Link>
           ))}
         </nav>
 
-        {/* Footer */}
         <div className="p-3 border-t border-gray-800">
           <div className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'} mb-3`}>
             {user?.avatar_url ? (
               <img src={user.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
             ) : (
-              <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
-                <IconUser size={16} />
-              </div>
+              <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0"><IconUser size={16} /></div>
             )}
             {!collapsed && <p className="text-xs text-gray-400 truncate">{user?.full_name}</p>}
           </div>
-          <button 
-            onClick={() => { logout(); navigate('/login'); }} 
-            className={`w-full bg-red-600/20 text-red-400 py-2 rounded-lg hover:bg-red-600/30 transition text-xs flex items-center justify-center gap-2 border border-red-600/30 ${
-              collapsed ? 'px-2' : 'px-3'
-            }`}
-            title="Déconnexion"
-          >
+          <button onClick={() => { logout(); navigate('/login'); }} 
+            className={`w-full bg-red-600/20 text-red-400 py-2 rounded-lg hover:bg-red-600/30 transition text-xs flex items-center justify-center gap-2 border border-red-600/30 ${collapsed ? 'px-2' : 'px-3'}`}
+            title="Déconnexion">
             <IconLogout size={14} />
             {!collapsed && 'Déconnexion'}
           </button>
@@ -142,24 +112,13 @@ export default function AdminLayout() {
         </div>
       </aside>
 
-      {/* Contenu principal */}
       <main className="flex-1 overflow-auto bg-gray-100 flex flex-col">
-        {/* Barre top mobile */}
         <div className="md:hidden flex items-center justify-between p-4 bg-white border-b">
-          <button 
-            onClick={() => setMobileOpen(true)}
-            className="text-gray-600 hover:text-gray-800"
-          >
-            <IconMenu size={24} />
-          </button>
+          <button onClick={() => setMobileOpen(true)} className="text-gray-600 hover:text-gray-800"><IconMenu size={24} /></button>
           <h2 className="font-bold text-sm">AM Info Admin</h2>
-          <button onClick={toggle} className="text-gray-600">
-            {dark ? <IconSun size={20} /> : <IconMoon size={20} />}
-          </button>
+          <button onClick={toggle} className="text-gray-600">{dark ? <IconSun size={20} /> : <IconMoon size={20} />}</button>
         </div>
-        <div className="flex-1 p-4 md:p-6 overflow-auto">
-          <Outlet />
-        </div>
+        <div className="flex-1 p-4 md:p-6 overflow-auto"><Outlet /></div>
       </main>
     </div>
   );
