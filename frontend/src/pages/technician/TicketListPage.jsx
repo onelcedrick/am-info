@@ -1,5 +1,6 @@
 // -*- coding: utf-8 -*-
 import { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import useConfirm from '../../hooks/useConfirm';
@@ -34,6 +35,7 @@ export default function TicketListPage() {
   const messagesContainerRef = useRef(null);
   const fileInputRef = useRef(null);
   const { confirm, Modal } = useConfirm();
+  const location = useLocation();
 
   const loadTickets = () => {
     const params = new URLSearchParams();
@@ -48,9 +50,7 @@ export default function TicketListPage() {
     if (!selectedTicket) return;
     api.get(`/tickets/${selectedTicket.id}`).then(r => {
       setMessages(r.data.messages || []);
-      if (r.data.sla) {
-        setSelectedTicket(prev => ({ ...prev, sla: r.data.sla }));
-      }
+      if (r.data.sla) setSelectedTicket(prev => ({ ...prev, sla: r.data.sla }));
     });
   };
 
@@ -59,6 +59,15 @@ export default function TicketListPage() {
   useEffect(() => { loadMessages(); }, [selectedTicket?.id]);
   useEffect(() => { if (autoScroll) setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 300); }, [messages, autoScroll]);
   useEffect(() => { if (!selectedTicket) return; const i = setInterval(() => loadMessages(), 2000); return () => clearInterval(i); }, [selectedTicket?.id]);
+
+  // Sélectionner le ticket depuis la navigation (depuis le dashboard)
+  useEffect(() => {
+    if (location.state?.selectedTicketId && tickets.length > 0) {
+      const ticket = tickets.find(t => t.id === location.state.selectedTicketId);
+      if (ticket) selectTicket(ticket);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state, tickets]);
 
   useEffect(() => {
     if (!token) return;
@@ -120,18 +129,8 @@ export default function TicketListPage() {
 
   const scrollToBottom = () => { setAutoScroll(true); messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); };
 
-  const getSlaColor = (color) => {
-    switch (color) { case 'red': return 'bg-red-500'; case 'orange': return 'bg-orange-500'; case 'yellow': return 'bg-yellow-500'; default: return 'bg-green-500'; }
-  };
-
-  const getSlaBgColor = (color) => {
-    switch (color) {
-      case 'red': return 'bg-red-50 text-red-700 border-red-200';
-      case 'orange': return 'bg-orange-50 text-orange-700 border-orange-200';
-      case 'yellow': return 'bg-yellow-50 text-yellow-700 border-yellow-200';
-      default: return 'bg-green-50 text-green-700 border-green-200';
-    }
-  };
+  const getSlaColor = (color) => { switch (color) { case 'red': return 'bg-red-500'; case 'orange': return 'bg-orange-500'; case 'yellow': return 'bg-yellow-500'; default: return 'bg-green-500'; } };
+  const getSlaBgColor = (color) => { switch (color) { case 'red': return 'bg-red-50 text-red-700 border-red-200'; case 'orange': return 'bg-orange-50 text-orange-700 border-orange-200'; case 'yellow': return 'bg-yellow-50 text-yellow-700 border-yellow-200'; default: return 'bg-green-50 text-green-700 border-green-200'; } };
 
   const priorityLabels = { low: 'Faible', normal: 'Normal', high: 'Haute', urgent: 'Urgent' };
   const priorityIcons = { low: '🟢', normal: '🔵', high: '🟠', urgent: '🔴' };
@@ -139,23 +138,14 @@ export default function TicketListPage() {
   const statusLabels = { open: 'Ouvert', assigned: 'Assigné', in_progress: 'En cours', resolved: 'Résolu', closed: 'Fermé' };
   const statusColors = { open: 'bg-yellow-100 text-yellow-800', assigned: 'bg-blue-100 text-blue-800', in_progress: 'bg-purple-100 text-purple-800', resolved: 'bg-green-100 text-green-800', closed: 'bg-gray-100 text-gray-800' };
 
-  const selectTicket = (ticket) => {
-    setSelectedTicket(ticket);
-    setAutoScroll(true);
-    setShowMobileChat(true);
-  };
-
-  const backToList = () => {
-    setShowMobileChat(false);
-  };
+  const selectTicket = (ticket) => { setSelectedTicket(ticket); setAutoScroll(true); setShowMobileChat(true); };
+  const backToList = () => { setShowMobileChat(false); };
 
   if (loading) return <div><h1 className="text-xl font-bold mb-4">Tickets</h1><p className="text-gray-400">Chargement...</p></div>;
 
   return (
     <div className="h-full flex flex-col">
       {Modal}
-      
-      {/* Header + Filtres */}
       <div className="flex-shrink-0 space-y-3 mb-4">
         <h1 className="text-xl md:text-2xl font-bold">Tickets ({tickets.length})</h1>
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 flex gap-2 flex-wrap">
@@ -166,7 +156,6 @@ export default function TicketListPage() {
       </div>
 
       <div className="flex-1 overflow-hidden">
-        {/* Desktop */}
         <div className="hidden md:grid md:grid-cols-2 gap-4 h-full">
           <div className="space-y-2 overflow-y-auto h-full">
             {tickets.length === 0 ? <div className="text-center text-gray-400 py-8">Aucun ticket</div> : tickets.map(t => (

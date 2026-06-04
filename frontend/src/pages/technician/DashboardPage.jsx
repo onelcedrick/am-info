@@ -1,11 +1,13 @@
 // -*- coding: utf-8 -*-
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState(null);
   const [recentTickets, setRecentTickets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadData();
@@ -26,6 +28,11 @@ export default function DashboardPage() {
         closed: tickets.filter(t => t.status === 'closed').length,
       });
     }).catch(() => {}).finally(() => setLoading(false));
+  };
+
+  const openTicket = (ticket) => {
+    // Rediriger vers la page tickets avec le ticket selectionne
+    navigate('/technician/tickets', { state: { selectedTicketId: ticket.id } });
   };
 
   if (loading) {
@@ -64,7 +71,7 @@ export default function DashboardPage() {
     <div className="space-y-4 md:space-y-6">
       <h1 className="text-xl md:text-2xl font-bold">Dashboard Technicien</h1>
 
-      {/* Stats - 2/3 colonnes mobile, 5 desktop */}
+      {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
           <p className="text-gray-400 text-xs mb-1">Total tickets</p>
@@ -92,6 +99,7 @@ export default function DashboardPage() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-4 border-b">
           <h2 className="font-semibold text-sm">Tickets récents</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Cliquez sur un ticket pour ouvrir la discussion</p>
         </div>
         
         {/* Tableau desktop */}
@@ -107,7 +115,7 @@ export default function DashboardPage() {
             </thead>
             <tbody>
               {recentTickets.map(t => (
-                <tr key={t.id} className="border-t hover:bg-gray-50">
+                <tr key={t.id} onClick={() => openTicket(t)} className="border-t hover:bg-gray-50 cursor-pointer transition">
                   <td className="p-3 font-medium truncate max-w-[200px]">{t.subject}</td>
                   <td className="p-3 text-center">
                     <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${priorityColors[t.priority] || ''}`}>
@@ -134,7 +142,7 @@ export default function DashboardPage() {
             <p className="p-4 text-center text-gray-400 text-sm">Aucun ticket récent</p>
           ) : (
             recentTickets.map(t => (
-              <div key={t.id} className="p-4 space-y-2">
+              <div key={t.id} onClick={() => openTicket(t)} className="p-4 space-y-2 cursor-pointer hover:bg-gray-50 transition">
                 <p className="font-medium text-sm truncate">{t.subject}</p>
                 <div className="flex items-center gap-2">
                   <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${priorityColors[t.priority] || ''}`}>
