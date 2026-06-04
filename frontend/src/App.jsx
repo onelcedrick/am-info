@@ -25,7 +25,6 @@ import CartPage from './pages/client/CartPage';
 import OrdersPage from './pages/client/OrdersPage';
 import TicketPage from './pages/client/TicketPage';
 import MapPage from './pages/client/MapPage';
-import ProfilePage from './pages/client/ProfilePage';
 import AdminDashboard from './pages/admin/DashboardPage';
 import ProductManagePage from './pages/admin/ProductManagePage';
 import DiscountPage from './pages/admin/DiscountPage';
