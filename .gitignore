@@ -1,33 +1,4 @@
-# Python
 __pycache__/
-*.py[cod]
-*.so
 venv/
-env/
-*.egg-info/
-dist/
-build/
-
-# Base de donnees
 *.db
-*.sqlite3
-
-# Uploads
-backend/uploads/*
-!backend/uploads/.gitkeep
-
-# Node
-frontend/node_modules/
-frontend/dist/
-
-# Environnement
-.env
-*.log
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-.vercel
-.env*
+*.pyc
