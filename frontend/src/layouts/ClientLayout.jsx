@@ -1,8 +1,9 @@
 // -*- coding: utf-8 -*-
 import { useState } from 'react';
-import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../contexts/ThemeContext';
+import useCartCount from '../hooks/useCartCount';
 import { IconCart, IconUser, IconLogout, IconSun, IconMoon, IconPackage, IconOrders, IconTicket, IconMap, IconClose } from '../components/Icons';
 
 const IconMenu = ({ size = 20 }) => (
@@ -17,30 +18,12 @@ const IconHome = ({ size = 20 }) => (
   </svg>
 );
 
-const IconInfo = ({ size = 20 }) => (
-  <svg width={size} height={size} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-  </svg>
-);
-
-const IconPhone = ({ size = 20 }) => (
-  <svg width={size} height={size} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-  </svg>
-);
-
-const IconWishlist = ({ size = 20 }) => (
-  <svg width={size} height={size} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-  </svg>
-);
-
 export default function ClientLayout() {
   const { user, isAuthenticated, logout } = useAuth();
   const { dark, toggle } = useTheme();
   const navigate = useNavigate();
-  const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const cartCount = useCartCount();
 
   const closeMenu = () => setMenuOpen(false);
 
@@ -50,7 +33,7 @@ export default function ClientLayout() {
   ];
 
   const authLinks = [
-    { to: '/client/cart', icon: <IconCart size={20} />, label: 'Panier' },
+    { to: '/client/cart', icon: <IconCart size={20} />, label: 'Panier', badge: cartCount },
     { to: '/client/orders', icon: <IconOrders size={20} />, label: 'Commandes' },
     { to: '/client/tickets', icon: <IconTicket size={20} />, label: 'Maintenance' },
     { to: '/client/profile', icon: <IconUser size={20} />, label: 'Profil' },
@@ -62,7 +45,6 @@ export default function ClientLayout() {
       <nav className="bg-blue-600 text-white shadow-lg flex-shrink-0 z-30">
         <div className="px-4 md:px-6">
           <div className="flex justify-between items-center h-14">
-            {/* Logo */}
             <Link to="/" className="text-lg md:text-xl font-bold tracking-tight flex items-center gap-2">
               <IconPackage size={22} /> AM Info
             </Link>
@@ -75,8 +57,14 @@ export default function ClientLayout() {
                 </Link>
               ))}
               {isAuthenticated && authLinks.map(l => (
-                <Link key={l.to} to={l.to} className="hover:text-blue-200 transition flex items-center gap-1">
-                  {l.icon} {l.label}
+                <Link key={l.to} to={l.to} className="hover:text-blue-200 transition flex items-center gap-1 relative">
+                  {l.icon}
+                  {l.badge > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center animate-pulse">
+                      {l.badge > 9 ? '9+' : l.badge}
+                    </span>
+                  )}
+                  {l.label}
                 </Link>
               ))}
               {isAuthenticated ? (
@@ -107,8 +95,13 @@ export default function ClientLayout() {
             {/* Mobile : icônes + burger */}
             <div className="flex md:hidden items-center gap-1">
               {isAuthenticated && (
-                <Link to="/client/cart" className="text-white p-2">
+                <Link to="/client/cart" className="text-white p-2 relative">
                   <IconCart size={20} />
+                  {cartCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold w-4.5 h-4.5 rounded-full flex items-center justify-center animate-pulse">
+                      {cartCount > 9 ? '9+' : cartCount}
+                    </span>
+                  )}
                 </Link>
               )}
               <button onClick={toggle} className="text-white p-2">
@@ -123,86 +116,61 @@ export default function ClientLayout() {
       </nav>
 
       {/* Overlay mobile */}
-      {menuOpen && (
-        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={closeMenu} />
-      )}
+      {menuOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={closeMenu} />}
 
       {/* Sidebar mobile */}
       <div className={`fixed top-0 right-0 h-full w-72 bg-white z-50 transform transition-transform duration-300 md:hidden ${menuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-        {/* Header sidebar */}
         <div className="flex items-center justify-between p-4 border-b bg-blue-600 text-white">
-          <div className="flex items-center gap-2">
-            <IconPackage size={20} />
-            <span className="font-bold">AM Info</span>
-          </div>
-          <button onClick={closeMenu} className="p-1">
-            <IconClose size={22} />
-          </button>
+          <div className="flex items-center gap-2"><IconPackage size={20} /><span className="font-bold">AM Info</span></div>
+          <button onClick={closeMenu} className="p-1"><IconClose size={22} /></button>
         </div>
 
-        {/* Profil utilisateur */}
         {isAuthenticated && (
           <div className="p-4 border-b bg-gray-50">
             <Link to="/client/profile" onClick={closeMenu} className="flex items-center gap-3">
               {user?.avatar_url ? (
                 <img src={user.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border-2 border-blue-200" />
               ) : (
-                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-                  <IconUser size={24} />
-                </div>
+                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center"><IconUser size={24} /></div>
               )}
-              <div>
-                <p className="font-bold text-gray-800">{user?.full_name}</p>
-                <p className="text-xs text-gray-500">{user?.email}</p>
-              </div>
+              <div><p className="font-bold text-gray-800">{user?.full_name}</p><p className="text-xs text-gray-500">{user?.email}</p></div>
             </Link>
           </div>
         )}
 
-        {/* Navigation */}
         <nav className="p-4 space-y-1">
-          <Link to="/" onClick={closeMenu} className="flex items-center gap-3 px-3 py-3 rounded-xl text-gray-700 hover:bg-gray-100 transition">
-            <IconHome size={20} /> Accueil
-          </Link>
+          <Link to="/" onClick={closeMenu} className="flex items-center gap-3 px-3 py-3 rounded-xl text-gray-700 hover:bg-gray-100 transition"><IconHome size={20} /> Accueil</Link>
           {publicLinks.map(l => (
-            <Link key={l.to} to={l.to} onClick={closeMenu} className="flex items-center gap-3 px-3 py-3 rounded-xl text-gray-700 hover:bg-gray-100 transition">
-              {l.icon} {l.label}
-            </Link>
+            <Link key={l.to} to={l.to} onClick={closeMenu} className="flex items-center gap-3 px-3 py-3 rounded-xl text-gray-700 hover:bg-gray-100 transition">{l.icon} {l.label}</Link>
           ))}
-          
           {isAuthenticated ? (
             <>
               <hr className="my-2" />
               {authLinks.map(l => (
-                <Link key={l.to} to={l.to} onClick={closeMenu} className="flex items-center gap-3 px-3 py-3 rounded-xl text-gray-700 hover:bg-gray-100 transition">
-                  {l.icon} {l.label}
+                <Link key={l.to} to={l.to} onClick={closeMenu} className="flex items-center gap-3 px-3 py-3 rounded-xl text-gray-700 hover:bg-gray-100 transition relative">
+                  {l.icon}
+                  {l.badge > 0 && (
+                    <span className="absolute left-8 top-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                      {l.badge > 9 ? '9+' : l.badge}
+                    </span>
+                  )}
+                  {l.label}
                 </Link>
               ))}
               <hr className="my-2" />
-              <button onClick={() => { logout(); navigate('/'); closeMenu(); }}
-                className="flex items-center gap-3 px-3 py-3 rounded-xl text-red-600 hover:bg-red-50 transition w-full">
-                <IconLogout size={20} /> Déconnexion
-              </button>
+              <button onClick={() => { logout(); navigate('/'); closeMenu(); }} className="flex items-center gap-3 px-3 py-3 rounded-xl text-red-600 hover:bg-red-50 transition w-full"><IconLogout size={20} /> Déconnexion</button>
             </>
           ) : (
-            <Link to="/login" onClick={closeMenu}
-              className="flex items-center gap-3 px-3 py-3 rounded-xl bg-blue-600 text-white justify-center mt-4 font-semibold">
-              <IconUser size={20} /> Se connecter
-            </Link>
+            <Link to="/login" onClick={closeMenu} className="flex items-center gap-3 px-3 py-3 rounded-xl bg-blue-600 text-white justify-center mt-4 font-semibold"><IconUser size={20} /> Se connecter</Link>
           )}
         </nav>
       </div>
 
-      {/* Contenu principal */}
       <main className="flex-1 overflow-auto bg-gray-50">
-        <div className="max-w-7xl mx-auto px-3 md:px-6 py-4 md:py-6 h-full">
-          <Outlet />
-        </div>
+        <div className="max-w-7xl mx-auto px-3 md:px-6 py-4 md:py-6 h-full"><Outlet /></div>
       </main>
 
-      <footer className="bg-gray-800 text-white text-center py-2 text-xs flex-shrink-0">
-        &copy; 2026 AM Info
-      </footer>
+      <footer className="bg-gray-800 text-white text-center py-2 text-xs flex-shrink-0">&copy; 2026 AM Info</footer>
     </div>
   );
 }
