@@ -18,96 +18,117 @@ const IconHome = ({ size = 20 }) => (
   </svg>
 );
 
+const IconInfo = ({ size = 20 }) => (
+  <svg width={size} height={size} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+);
+
 export default function ClientLayout() {
   const { user, isAuthenticated, logout } = useAuth();
   const { dark, toggle } = useTheme();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const cartCount = useCartCount();
-
   const closeMenu = () => setMenuOpen(false);
 
-  const publicLinks = [
-    { to: '/products', icon: <IconPackage size={20} />, label: 'Produits' },
-    { to: '/map', icon: <IconMap size={20} />, label: 'Boutique' },
+  // Ordre : Accueil, Produits, Panier, Commandes, Maintenance, Boutique
+  const navLinks = [
+    { to: '/', icon: <IconHome size={18} />, label: 'Accueil' },
+    { to: '/products', icon: <IconPackage size={18} />, label: 'Produits' },
   ];
 
   const authLinks = [
-    { to: '/client/cart', icon: <IconCart size={20} />, label: 'Panier', badge: cartCount },
-    { to: '/client/orders', icon: <IconOrders size={20} />, label: 'Commandes' },
-    { to: '/client/tickets', icon: <IconTicket size={20} />, label: 'Maintenance' },
-    { to: '/client/profile', icon: <IconUser size={20} />, label: 'Profil' },
+    { to: '/client/cart', icon: <IconCart size={18} />, label: 'Panier', badge: cartCount },
+    { to: '/client/orders', icon: <IconOrders size={18} />, label: 'Commandes' },
+    { to: '/client/tickets', icon: <IconTicket size={18} />, label: 'Maintenance' },
+    { to: '/map', icon: <IconMap size={18} />, label: 'Boutique' },
   ];
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden">
       {/* Navbar */}
-      <nav className="bg-blue-600 text-white shadow-lg flex-shrink-0 z-30">
+      <nav className="bg-white border-b border-gray-200 flex-shrink-0 z-30">
         <div className="px-4 md:px-6">
           <div className="flex justify-between items-center h-14">
-            <Link to="/" className="text-lg md:text-xl font-bold tracking-tight flex items-center gap-2">
-              <IconPackage size={22} /> AM Info
+            {/* Logo */}
+            <Link to="/" className="text-lg md:text-xl font-bold tracking-tight text-blue-600 flex items-center gap-2">
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                <IconPackage size={18} />
+              </div>
+              AM Info
             </Link>
             
             {/* Desktop menu */}
-            <div className="hidden md:flex items-center gap-4 text-sm">
-              {publicLinks.map(l => (
-                <Link key={l.to} to={l.to} className="hover:text-blue-200 transition flex items-center gap-1">
+            <div className="hidden md:flex items-center gap-1">
+              {navLinks.map(l => (
+                <Link key={l.to} to={l.to} className="px-3 py-2 rounded-lg text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition flex items-center gap-1.5">
                   {l.icon} {l.label}
                 </Link>
               ))}
               {isAuthenticated && authLinks.map(l => (
-                <Link key={l.to} to={l.to} className="hover:text-blue-200 transition flex items-center gap-1 relative">
+                <Link key={l.to} to={l.to} className="px-3 py-2 rounded-lg text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition flex items-center gap-1.5 relative">
                   {l.icon}
                   {l.badge > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center animate-pulse">
+                    <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center animate-pulse">
                       {l.badge > 9 ? '9+' : l.badge}
                     </span>
                   )}
                   {l.label}
                 </Link>
               ))}
+              <span className="w-px h-6 bg-gray-200 mx-2" />
               {isAuthenticated ? (
                 <>
-                  <span className="text-blue-200">|</span>
-                  <Link to="/client/profile" className="flex items-center gap-2 hover:text-blue-200 transition">
+                  <Link to="/client/profile" className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-gray-100 transition">
                     {user?.avatar_url ? (
-                      <img src={user.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover border-2 border-white/50" />
+                      <img src={user.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover border-2 border-blue-100" />
                     ) : (
-                      <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center"><IconUser size={14} /></div>
+                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                        <IconUser size={16} />
+                      </div>
                     )}
-                    <span className="text-xs">{user?.full_name}</span>
+                    <span className="text-sm text-gray-700 font-medium">{user?.full_name}</span>
                   </Link>
-                  <button onClick={() => { logout(); navigate('/'); }} className="hover:text-red-200 transition" title="Déconnexion">
-                    <IconLogout size={17} />
+                  <button onClick={() => { logout(); navigate('/'); }} className="p-2 text-gray-400 hover:text-red-500 transition" title="Déconnexion">
+                    <IconLogout size={18} />
                   </button>
                 </>
               ) : (
-                <Link to="/login" className="bg-white text-blue-600 px-4 py-1.5 rounded-full text-sm hover:bg-blue-100 transition flex items-center gap-1">
-                  <IconUser size={15} /> Connexion
+                <Link to="/login" className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition flex items-center gap-1.5">
+                  <IconUser size={16} /> Connexion
                 </Link>
               )}
-              <button onClick={toggle} className="text-white hover:text-blue-200 transition text-lg">
-                {dark ? <IconSun size={17} /> : <IconMoon size={17} />}
+              <button onClick={toggle} className="p-2 text-gray-400 hover:text-gray-600 transition">
+                {dark ? <IconSun size={18} /> : <IconMoon size={18} />}
               </button>
             </div>
 
-            {/* Mobile : icônes + burger */}
+            {/* Mobile */}
             <div className="flex md:hidden items-center gap-1">
               {isAuthenticated && (
-                <Link to="/client/cart" className="text-white p-2 relative">
+                <Link to="/client/cart" className="p-2 text-gray-600 relative">
                   <IconCart size={20} />
                   {cartCount > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold w-4.5 h-4.5 rounded-full flex items-center justify-center animate-pulse">
+                    <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold min-w-[17px] h-[17px] rounded-full flex items-center justify-center animate-pulse">
                       {cartCount > 9 ? '9+' : cartCount}
                     </span>
                   )}
                 </Link>
               )}
-              <button onClick={toggle} className="text-white p-2">
+              <Link to="/client/profile" className="p-1">
+                {user?.avatar_url ? (
+                  <img src={user.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover border-2 border-blue-100" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                    <IconUser size={16} />
+                  </div>
+                )}
+              </Link>
+              <button onClick={toggle} className="p-2 text-gray-500">
                 {dark ? <IconSun size={18} /> : <IconMoon size={18} />}
               </button>
-              <button onClick={() => setMenuOpen(!menuOpen)} className="text-white p-2">
+              <button onClick={() => setMenuOpen(!menuOpen)} className="p-2 text-gray-600">
                 <IconMenu size={22} />
               </button>
             </div>
@@ -116,52 +137,50 @@ export default function ClientLayout() {
       </nav>
 
       {/* Overlay mobile */}
-      {menuOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={closeMenu} />}
+      {menuOpen && <div className="fixed inset-0 bg-black/40 z-40 md:hidden" onClick={closeMenu} />}
 
       {/* Sidebar mobile */}
-      <div className={`fixed top-0 right-0 h-full w-72 bg-white z-50 transform transition-transform duration-300 md:hidden ${menuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-        <div className="flex items-center justify-between p-4 border-b bg-blue-600 text-white">
-          <div className="flex items-center gap-2"><IconPackage size={20} /><span className="font-bold">AM Info</span></div>
-          <button onClick={closeMenu} className="p-1"><IconClose size={22} /></button>
+      <div className={`fixed top-0 right-0 h-full w-72 bg-white z-50 shadow-2xl transform transition-transform duration-300 md:hidden ${menuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+        <div className="flex items-center justify-between p-4 border-b">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+              <IconPackage size={16} />
+            </div>
+            <span className="font-bold text-gray-800">Menu</span>
+          </div>
+          <button onClick={closeMenu} className="p-2 text-gray-400 hover:text-gray-600">
+            <IconClose size={22} />
+          </button>
         </div>
 
-        {isAuthenticated && (
-          <div className="p-4 border-b bg-gray-50">
-            <Link to="/client/profile" onClick={closeMenu} className="flex items-center gap-3">
-              {user?.avatar_url ? (
-                <img src={user.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border-2 border-blue-200" />
-              ) : (
-                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center"><IconUser size={24} /></div>
-              )}
-              <div><p className="font-bold text-gray-800">{user?.full_name}</p><p className="text-xs text-gray-500">{user?.email}</p></div>
+        <nav className="p-3 space-y-1">
+          {navLinks.map(l => (
+            <Link key={l.to} to={l.to} onClick={closeMenu} className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 hover:bg-gray-100 transition">
+              <span className="text-gray-400">{l.icon}</span> {l.label}
             </Link>
-          </div>
-        )}
-
-        <nav className="p-4 space-y-1">
-          <Link to="/" onClick={closeMenu} className="flex items-center gap-3 px-3 py-3 rounded-xl text-gray-700 hover:bg-gray-100 transition"><IconHome size={20} /> Accueil</Link>
-          {publicLinks.map(l => (
-            <Link key={l.to} to={l.to} onClick={closeMenu} className="flex items-center gap-3 px-3 py-3 rounded-xl text-gray-700 hover:bg-gray-100 transition">{l.icon} {l.label}</Link>
           ))}
+          {isAuthenticated && authLinks.map(l => (
+            <Link key={l.to} to={l.to} onClick={closeMenu} className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 hover:bg-gray-100 transition relative">
+              <span className="text-gray-400">{l.icon}</span>
+              {l.badge > 0 && (
+                <span className="absolute left-10 top-2 bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center">
+                  {l.badge > 9 ? '9+' : l.badge}
+                </span>
+              )}
+              {l.label}
+            </Link>
+          ))}
+          <hr className="my-2" />
           {isAuthenticated ? (
-            <>
-              <hr className="my-2" />
-              {authLinks.map(l => (
-                <Link key={l.to} to={l.to} onClick={closeMenu} className="flex items-center gap-3 px-3 py-3 rounded-xl text-gray-700 hover:bg-gray-100 transition relative">
-                  {l.icon}
-                  {l.badge > 0 && (
-                    <span className="absolute left-8 top-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
-                      {l.badge > 9 ? '9+' : l.badge}
-                    </span>
-                  )}
-                  {l.label}
-                </Link>
-              ))}
-              <hr className="my-2" />
-              <button onClick={() => { logout(); navigate('/'); closeMenu(); }} className="flex items-center gap-3 px-3 py-3 rounded-xl text-red-600 hover:bg-red-50 transition w-full"><IconLogout size={20} /> Déconnexion</button>
-            </>
+            <button onClick={() => { logout(); navigate('/'); closeMenu(); }}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 transition w-full">
+              <IconLogout size={18} /> Déconnexion
+            </button>
           ) : (
-            <Link to="/login" onClick={closeMenu} className="flex items-center gap-3 px-3 py-3 rounded-xl bg-blue-600 text-white justify-center mt-4 font-semibold"><IconUser size={20} /> Se connecter</Link>
+            <Link to="/login" onClick={closeMenu}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-600 text-white justify-center font-semibold">
+              <IconUser size={18} /> Se connecter
+            </Link>
           )}
         </nav>
       </div>
@@ -169,8 +188,6 @@ export default function ClientLayout() {
       <main className="flex-1 overflow-auto bg-gray-50">
         <div className="max-w-7xl mx-auto px-3 md:px-6 py-4 md:py-6 h-full"><Outlet /></div>
       </main>
-
-      <footer className="bg-gray-800 text-white text-center py-2 text-xs flex-shrink-0">&copy; 2026 AM Info</footer>
     </div>
   );
 }
