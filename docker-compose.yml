@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: aminfo-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - uploads_data:/app/uploads
+    env_file:
+      - .env
+    environment:
+      - REDIS_HOST=redis
+    restart: unless-stopped
+    networks:
+      - aminfo-network
+    depends_on:
+      - redis
+
+  frontend:
+    build: ./frontend
+    container_name: aminfo-frontend
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    networks:
+      - aminfo-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: aminfo-redis
+    restart: unless-stopped
+    networks:
+      - aminfo-network
+    volumes:
+      - redis_data:/data
+
+networks:
+  aminfo-network:
+    driver: bridge
+
+volumes:
+  uploads_data:
+  redis_data:

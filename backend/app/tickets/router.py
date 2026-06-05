@@ -9,6 +9,7 @@ from ..emails import service as email_service
 from ..logs.service import log_activity
 from ..auth.service import decode_token
 from ..config import settings
+from .sla import get_sla_status, get_sla_rules
 import os, uuid
 
 router = APIRouter(prefix="/tickets", tags=["tickets"])
@@ -24,6 +25,11 @@ def get_current_user(authorization: str = Header(None)):
     if not payload: raise HTTPException(status_code=401)
     return payload
 
+@router.get("/sla-rules")
+def sla_rules():
+    """Retourne les regles SLA"""
+    return get_sla_rules()
+
 @router.post("")
 def create_ticket(data: TicketCreate, payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     ticket = ticket_service.create_ticket(db, payload.get("sub"), data.subject, data.description, data.priority)
@@ -38,7 +44,23 @@ def my_tickets(payload: dict = Depends(get_current_user), search: str = Query(No
 
 @router.get("/{ticket_id}")
 def ticket_detail(ticket_id: str, db: Session = Depends(get_db)):
-    return ticket_service.get_ticket_detail(db, ticket_id)
+    ticket = ticket_service.get_ticket_detail(db, ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404)
+    # Ajouter SLA
+    result = {
+        "id": ticket.id, "subject": ticket.subject, "description": ticket.description,
+        "status": ticket.status, "priority": ticket.priority,
+        "client_id": ticket.client_id, "technician_id": ticket.technician_id,
+        "created_at": ticket.created_at.isoformat() if ticket.created_at else None,
+        "messages": [{
+            "id": m.id, "sender_id": m.sender_id, "message": m.message,
+            "is_from_bot": m.is_from_bot, "attachment_url": m.attachment_url,
+            "created_at": m.created_at.isoformat() if m.created_at else None
+        } for m in (ticket.messages or [])],
+        "sla": get_sla_status(ticket)
+    }
+    return result
 
 @router.post("/{ticket_id}/messages")
 def send_message(ticket_id: str, data: MessageCreate, payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -47,7 +69,7 @@ def send_message(ticket_id: str, data: MessageCreate, payload: dict = Depends(ge
 @router.post("/{ticket_id}/upload")
 async def upload_photo(ticket_id: str, file: UploadFile = File(...), payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     if not file.content_type or not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Seules les images sont acceptees")
+        raise HTTPException(status_code=400)
     ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
     filename = f"{uuid.uuid4()}.{ext}"
     filepath = os.path.join(UPLOAD_DIR, filename)

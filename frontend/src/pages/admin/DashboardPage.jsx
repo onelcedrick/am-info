@@ -21,41 +21,44 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, []);
 
-  if (!stats) return <div className="text-center py-10 text-gray-400">Chargement des statistiques...</div>;
+  if (!stats) return <div className="text-center py-10 text-gray-400">Chargement...</div>;
 
   const orderStatusLabels = {
-    pending: 'En attente', awaiting_payment: 'Paiement', paid: 'Payee',
-    preparing: 'Preparation', ready: 'Prete', delivered: 'Livree', cancelled: 'Annulee'
+    pending: 'En attente', awaiting_payment: 'Paiement', paid: 'Payée',
+    preparing: 'Prépa', ready: 'Prête', delivered: 'Livrée', cancelled: 'Annulée'
+  };
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
   };
 
   const orderChartData = {
     labels: Object.keys(stats.orders_by_status).map(s => orderStatusLabels[s] || s),
     datasets: [{
-      label: 'Commandes',
       data: Object.values(stats.orders_by_status),
       backgroundColor: ['#facc15', '#3b82f6', '#22c55e', '#a855f7', '#14b8a6', '#16a34a', '#ef4444'],
-      borderRadius: 8,
+      borderRadius: 6,
     }]
   };
 
   const dailyChartData = {
     labels: stats.daily_orders.map(d => d.date),
     datasets: [{
-      label: 'Commandes par jour',
       data: stats.daily_orders.map(d => d.count),
       borderColor: '#3b82f6',
-      backgroundColor: 'rgba(59,130,246,0.1)',
+      backgroundColor: 'rgba(59,130,246,0.08)',
       fill: true,
       tension: 0.4,
-      pointRadius: 4,
-      pointBackgroundColor: '#3b82f6',
+      pointRadius: 0,
+      borderWidth: 2,
     }]
   };
 
   const categoryChartData = {
     labels: stats.top_categories.map(c => c.name),
     datasets: [{
-      label: 'Produits par categorie',
       data: stats.top_categories.map(c => c.count),
       backgroundColor: ['#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#ef4444'],
       borderWidth: 0,
@@ -63,9 +66,8 @@ export default function DashboardPage() {
   };
 
   const ticketChartData = {
-    labels: ['Ouverts', 'Assignes', 'En cours', 'Resolus', 'Fermes'],
+    labels: ['Ouverts', 'Assignés', 'En cours', 'Résolus', 'Fermés'],
     datasets: [{
-      label: 'Tickets',
       data: [
         stats.tickets_by_status.open || 0,
         stats.tickets_by_status.assigned || 0,
@@ -79,74 +81,111 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="h-full overflow-auto pb-8">
-      <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
+    <div className="space-y-4 md:space-y-6">
+      <h1 className="text-xl md:text-2xl font-bold">Dashboard</h1>
       
-      {/* Cartes stats */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
-        <div className="bg-white rounded-xl shadow p-5">
-          <p className="text-gray-500 text-xs mb-1">Chiffre d'affaires</p>
-          <p className="text-3xl font-bold text-blue-600">{stats.total_revenue.toLocaleString()} Ar</p>
-          <p className="text-xs text-gray-400 mt-1">30j: {stats.revenue_30d.toLocaleString()} Ar</p>
+      {/* Cartes stats - 2 colonnes mobile, 4 desktop */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <p className="text-gray-400 text-xs mb-1">Chiffre d'affaires</p>
+          <p className="text-xl md:text-2xl font-bold text-blue-600">{stats.total_revenue.toLocaleString()} Ar</p>
+          <p className="text-[10px] text-gray-400 mt-1">30j: {stats.revenue_30d.toLocaleString()} Ar</p>
         </div>
-        <div className="bg-white rounded-xl shadow p-5">
-          <p className="text-gray-500 text-xs mb-1">Commandes</p>
-          <p className="text-3xl font-bold text-green-600">{stats.total_orders}</p>
-          <p className="text-xs text-gray-400 mt-1">{stats.orders_by_status.delivered || 0} livrees</p>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <p className="text-gray-400 text-xs mb-1">Commandes</p>
+          <p className="text-xl md:text-2xl font-bold text-green-600">{stats.total_orders}</p>
+          <p className="text-[10px] text-gray-400 mt-1">{stats.orders_by_status.delivered || 0} livrées</p>
         </div>
-        <div className="bg-white rounded-xl shadow p-5">
-          <p className="text-gray-500 text-xs mb-1">Clients</p>
-          <p className="text-3xl font-bold text-purple-600">{stats.total_clients}</p>
-          <p className="text-xs text-gray-400 mt-1">{stats.total_products} produits</p>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <p className="text-gray-400 text-xs mb-1">Clients</p>
+          <p className="text-xl md:text-2xl font-bold text-purple-600">{stats.total_clients}</p>
+          <p className="text-[10px] text-gray-400 mt-1">{stats.total_products} produits</p>
         </div>
-        <div className="bg-white rounded-xl shadow p-5">
-          <p className="text-gray-500 text-xs mb-1">Tickets</p>
-          <p className="text-3xl font-bold text-orange-600">{stats.total_tickets}</p>
-          <p className="text-xs text-gray-400 mt-1">{stats.tickets_by_status.open || 0} ouverts</p>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <p className="text-gray-400 text-xs mb-1">Tickets</p>
+          <p className="text-xl md:text-2xl font-bold text-orange-600">{stats.total_tickets}</p>
+          <p className="text-[10px] text-gray-400 mt-1">{stats.tickets_by_status.open || 0} ouverts</p>
         </div>
       </div>
 
-      {/* Stock alerts */}
+      {/* Alertes stock */}
       {(stats.low_stock > 0 || stats.out_of_stock > 0) && (
-        <div className="flex gap-4 mb-8">
+        <div className="grid grid-cols-2 gap-3 md:gap-4">
           {stats.out_of_stock > 0 && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex-1">
-              <p className="text-red-600 font-bold">{stats.out_of_stock}</p>
-              <p className="text-red-500 text-sm">Produits en rupture de stock</p>
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+              <p className="text-red-600 font-bold text-lg">{stats.out_of_stock}</p>
+              <p className="text-red-500 text-xs">En rupture de stock</p>
             </div>
           )}
           {stats.low_stock > 0 && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex-1">
-              <p className="text-yellow-600 font-bold">{stats.low_stock}</p>
-              <p className="text-yellow-500 text-sm">Produits avec stock faible</p>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3">
+              <p className="text-yellow-600 font-bold text-lg">{stats.low_stock}</p>
+              <p className="text-yellow-500 text-xs">Stock faible</p>
             </div>
           )}
         </div>
       )}
 
-      {/* Graphiques */}
-      <div className="grid grid-cols-2 gap-6 mb-8">
-        <div className="bg-white rounded-xl shadow p-6">
-          <h3 className="font-bold text-lg mb-4">Commandes (7 derniers jours)</h3>
-          <Line data={dailyChartData} options={{ responsive: true, plugins: { legend: { display: false } } }} />
+      {/* Graphiques - 1 colonne mobile, 2 desktop */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Commandes 7 jours */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <h3 className="font-semibold text-sm mb-3">Commandes (7 jours)</h3>
+          <div className="h-48 md:h-56">
+            <Line data={dailyChartData} options={chartOptions} />
+          </div>
         </div>
-        <div className="bg-white rounded-xl shadow p-6">
-          <h3 className="font-bold text-lg mb-4">Commandes par statut</h3>
-          <Bar data={orderChartData} options={{ responsive: true, plugins: { legend: { display: false } } }} />
+
+        {/* Commandes par statut */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <h3 className="font-semibold text-sm mb-3">Commandes par statut</h3>
+          <div className="h-48 md:h-56">
+            <Bar data={orderChartData} options={chartOptions} />
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl shadow p-6">
-          <h3 className="font-bold text-lg mb-4">Top categories</h3>
-          <div className="w-64 mx-auto">
-            <Doughnut data={categoryChartData} options={{ responsive: true, plugins: { legend: { position: 'bottom' } } }} />
+      {/* Donuts - 2 colonnes */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <h3 className="font-semibold text-sm mb-3">Top catégories</h3>
+          <div className="h-48 md:h-56 flex items-center justify-center">
+            <div className="w-40 md:w-48">
+              <Doughnut 
+                data={categoryChartData} 
+                options={{ 
+                  responsive: true, 
+                  maintainAspectRatio: true,
+                  plugins: { 
+                    legend: { 
+                      position: 'bottom',
+                      labels: { boxWidth: 10, padding: 10, font: { size: 10 } }
+                    } 
+                  } 
+                }} 
+              />
+            </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow p-6">
-          <h3 className="font-bold text-lg mb-4">Tickets par statut</h3>
-          <div className="w-64 mx-auto">
-            <Doughnut data={ticketChartData} options={{ responsive: true, plugins: { legend: { position: 'bottom' } } }} />
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <h3 className="font-semibold text-sm mb-3">Tickets par statut</h3>
+          <div className="h-48 md:h-56 flex items-center justify-center">
+            <div className="w-40 md:w-48">
+              <Doughnut 
+                data={ticketChartData} 
+                options={{ 
+                  responsive: true, 
+                  maintainAspectRatio: true,
+                  plugins: { 
+                    legend: { 
+                      position: 'bottom',
+                      labels: { boxWidth: 10, padding: 10, font: { size: 10 } }
+                    } 
+                  } 
+                }} 
+              />
+            </div>
           </div>
         </div>
       </div>

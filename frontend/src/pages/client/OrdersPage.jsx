@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import { EmptyState } from '../../components/Skeleton';
 import PaymentModal from '../../components/PaymentModal';
+import { IconOrders, IconCart } from '../../components/Icons';
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState([]);
@@ -23,7 +24,7 @@ export default function OrdersPage() {
     if (!confirm('Annuler cette commande ?')) return;
     try {
       await api.delete(`/orders/${orderId}`);
-      toast.success('Commande annulee');
+      toast.success('Commande annulée');
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'cancelled' } : o));
     } catch (err) { toast.error(err.response?.data?.detail || 'Erreur'); }
   };
@@ -34,21 +35,21 @@ export default function OrdersPage() {
   };
 
   const statusLabels = {
-    pending: 'En attente', awaiting_payment: 'En attente de paiement', paid: 'Payee',
-    preparing: 'En preparation', ready: 'Prete', delivered: 'Livree', cancelled: 'Annulee'
+    pending: 'En attente', awaiting_payment: 'En attente de paiement', paid: 'Payée',
+    preparing: 'En préparation', ready: 'Prête', delivered: 'Livrée', cancelled: 'Annulée'
   };
   const statusColors = {
     pending: 'bg-yellow-100 text-yellow-800', awaiting_payment: 'bg-orange-100 text-orange-800',
     paid: 'bg-green-100 text-green-800', preparing: 'bg-purple-100 text-purple-800',
-    ready: 'bg-teal-100 text-teal-800', delivered: 'bg-green-200 text-green-900', cancelled: 'bg-red-100 text-red-800'
+    ready: 'bg-teal-100 text-teal-800', delivered: 'bg-blue-100 text-blue-800', cancelled: 'bg-red-100 text-red-800'
   };
 
   if (loading) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-6">Mes Commandes</h1>
+        <h1 className="text-xl md:text-2xl font-bold mb-6">Mes Commandes</h1>
         <div className="space-y-3 animate-pulse">
-          {[...Array(3)].map((_, i) => <div key={i} className="bg-white rounded-xl p-6 h-24" />)}
+          {[...Array(3)].map((_, i) => <div key={i} className="bg-white rounded-xl p-5 h-20" />)}
         </div>
       </div>
     );
@@ -56,15 +57,20 @@ export default function OrdersPage() {
 
   if (orders.length === 0) {
     return (
-      <EmptyState icon="📋" title="Aucune commande" description="Vous n'avez pas encore passe de commande."
-        action={<Link to="/products" className="bg-blue-600 text-white px-6 py-2 rounded-full text-sm">Voir les produits</Link>} />
+      <EmptyState
+        title="Aucune commande"
+        description="Vous n'avez pas encore passé de commande."
+        action={<Link to="/products" className="bg-blue-600 text-white px-6 py-2 rounded-full text-sm">Voir les produits</Link>}
+      />
     );
   }
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Mes Commandes</h1>
-      <div className="space-y-3">
+      <h1 className="text-xl md:text-2xl font-bold mb-4 md:mb-6">Mes Commandes</h1>
+
+      {/* Liste desktop */}
+      <div className="hidden md:block space-y-3">
         {orders.map(order => (
           <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-100 px-5 py-4">
             <div className="flex items-center justify-between">
@@ -79,17 +85,51 @@ export default function OrdersPage() {
               </div>
               <div className="flex items-center gap-3">
                 <span className="font-bold text-blue-600">{order.total_amount?.toLocaleString()} Ar</span>
-                
                 {(order.status === 'pending' || order.status === 'awaiting_payment') && (
-                  <button onClick={() => setPaymentOrder(order)}
-                    className="bg-green-600 text-white px-3 py-1 rounded-full text-xs font-semibold hover:bg-green-700 transition">
-                    Payer
-                  </button>
+                  <>
+                    <button onClick={() => setPaymentOrder(order)}
+                      className="bg-green-600 text-white px-3 py-1 rounded-full text-xs font-semibold hover:bg-green-700 transition">
+                      Payer
+                    </button>
+                    <button onClick={() => cancelOrder(order.id)}
+                      className="text-xs text-gray-300 hover:text-red-400 transition">✕</button>
+                  </>
                 )}
-                
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Liste mobile */}
+      <div className="md:hidden space-y-2">
+        {orders.map(order => (
+          <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <div className="flex justify-between items-start mb-2">
+              <div>
+                <span className="text-xs text-gray-400 font-mono">#{order.id.slice(0, 8)}</span>
+                <span className="text-xs text-gray-400 ml-2">
+                  {new Date(order.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                </span>
+              </div>
+              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${statusColors[order.status]}`}>
+                {statusLabels[order.status]}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-lg font-bold text-blue-600">{order.total_amount?.toLocaleString()} Ar</span>
+              <div className="flex items-center gap-2">
                 {(order.status === 'pending' || order.status === 'awaiting_payment') && (
-                  <button onClick={() => cancelOrder(order.id)}
-                    className="text-xs text-gray-300 hover:text-red-400 transition">✕</button>
+                  <>
+                    <button onClick={() => setPaymentOrder(order)}
+                      className="bg-green-600 text-white px-3 py-1.5 rounded-full text-xs font-semibold">
+                      Payer
+                    </button>
+                    <button onClick={() => cancelOrder(order.id)}
+                      className="w-7 h-7 bg-red-50 text-red-400 rounded-full flex items-center justify-center text-sm">
+                      ✕
+                    </button>
+                  </>
                 )}
               </div>
             </div>

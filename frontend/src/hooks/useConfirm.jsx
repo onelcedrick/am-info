@@ -1,19 +1,19 @@
 // -*- coding: utf-8 -*-
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
 
 export default function useConfirm() {
   const [open, setOpen] = useState(false);
-  const [config, setConfig] = useState({ title: '', message: '' });
+  const [config, setConfig] = useState({ title: '', message: '', variant: 'danger' });
   const [resolveRef, setResolveRef] = useState(null);
 
-  const confirm = (title, message) => {
+  const confirm = useCallback((title, message, variant = 'danger') => {
     return new Promise((resolve) => {
-      setConfig({ title, message });
+      setConfig({ title, message, variant });
       setOpen(true);
       setResolveRef(() => resolve);
     });
-  };
+  }, []);
 
   const handleConfirm = () => {
     setOpen(false);
@@ -30,6 +30,7 @@ export default function useConfirm() {
       open={open}
       title={config.title}
       message={config.message}
+      variant={config.variant}
       onConfirm={handleConfirm}
       onCancel={handleCancel}
     />

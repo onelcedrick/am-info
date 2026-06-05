@@ -110,3 +110,26 @@ html, body, #root {
 .animate-fadeIn {
   animation: fadeIn 0.3s ease-out;
 }
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.animate-slideUp {
+  animation: slideUp 0.3s ease-out;
+}
+
+/* Dark mode - Comment ça marche */
+.dark .bg-gradient-to-br.from-gray-50.to-blue-50 {
+  background-image: linear-gradient(to bottom right, #1e293b, #1e3a5f) !important;
+}
+
+.dark .bg-gradient-to-br.from-gray-50.to-blue-50 h2,
+.dark .bg-gradient-to-br.from-gray-50.to-blue-50 h3 {
+  color: #e2e8f0 !important;
+}
+
+.dark .bg-gradient-to-br.from-gray-50.to-blue-50 p {
+  color: #94a3b8 !important;
+}
