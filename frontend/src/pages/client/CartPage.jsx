@@ -7,7 +7,7 @@ import { EmptyState } from '../../components/Skeleton';
 import { useAuth } from '../../hooks/useAuth';
 import { IconCart, IconTrash, IconPackage } from '../../components/Icons';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL;
 
 function getImageUrl(url) {
   if (!url) return null;
