@@ -5,3 +5,4 @@ venv/
 backend/.env
 frontend/.env
 .env
+am-info-backend/
