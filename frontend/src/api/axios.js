@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Forcer HTTPS
-let baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+let baseURL = import.meta.env.VITE_API_URL || 'https://localhost:8000';
 if (baseURL.startsWith('http://')) {
   baseURL = baseURL.replace('http://', 'https://');
 }
