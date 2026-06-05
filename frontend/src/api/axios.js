@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+  baseURL: import.meta.env.VITE_API_URL || 'https://am-info-9tmz.onrender.com',
   headers: { 'Content-Type': 'application/json' },
   timeout: 15000,
 });
