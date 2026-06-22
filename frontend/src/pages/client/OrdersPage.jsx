@@ -43,7 +43,7 @@ export default function OrdersPage() {
         toast.error('Facture non disponible');
       }
     } catch (err) {
-      toast.error('Facture non encore generee');
+      toast.error('Facture non encore générée');
     }
   };
 
@@ -53,8 +53,8 @@ export default function OrdersPage() {
   };
 
   const statusLabels = {
-    pending: 'En attente', awaiting_payment: 'En attente de paiement', paid: 'Payee',
-    preparing: 'En preparation', ready: 'Prete', delivered: 'Livree', cancelled: 'Annulee'
+    pending: 'En attente', awaiting_payment: 'En attente de paiement', paid: 'Payée',
+    preparing: 'En préparation', ready: 'Prête', delivered: 'Livrée', cancelled: 'Annulée'
   };
   const statusColors = {
     pending: 'bg-yellow-100 text-yellow-800', awaiting_payment: 'bg-orange-100 text-orange-800',
@@ -79,7 +79,7 @@ export default function OrdersPage() {
     return (
       <EmptyState
         title="Aucune commande"
-        description="Vous n'avez pas encore passe de commande."
+        description="Vous n'avez pas encore passé de commande."
         action={<Link to="/products" className="bg-blue-600 text-white px-6 py-2 rounded-full text-sm">Voir les produits</Link>}
       />
     );
@@ -105,12 +105,15 @@ export default function OrdersPage() {
               </div>
               <div className="flex items-center gap-3">
                 <span className="font-bold text-blue-600">{order.total_amount?.toLocaleString()} Ar</span>
+                
+                {/* ✅ BOUTON FACTURE - Desktop */}
                 {canDownloadInvoice(order.status) && (
                   <button onClick={() => downloadInvoice(order.id)}
                     className="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-blue-100 transition flex items-center gap-1">
                     <IconDownload size={12} /> Facture
                   </button>
                 )}
+                
                 {(order.status === 'pending' || order.status === 'awaiting_payment') && (
                   <>
                     <button onClick={() => setPaymentOrder(order)}
@@ -118,7 +121,7 @@ export default function OrdersPage() {
                       Payer
                     </button>
                     <button onClick={() => cancelOrder(order.id)}
-                      className="text-gray-300 hover:text-red-500 transition text-sm">✕</button>
+                      className="text-gray-300 hover:text-red-500 transition text-sm">🗑</button>
                   </>
                 )}
               </div>
@@ -145,12 +148,15 @@ export default function OrdersPage() {
             <div className="flex justify-between items-center">
               <span className="text-lg font-bold text-blue-600">{order.total_amount?.toLocaleString()} Ar</span>
               <div className="flex items-center gap-2">
+                
+                {/* ✅ BOUTON FACTURE - Mobile */}
                 {canDownloadInvoice(order.status) && (
                   <button onClick={() => downloadInvoice(order.id)}
                     className="bg-blue-50 text-blue-600 px-2.5 py-1.5 rounded-lg text-xs font-medium hover:bg-blue-100 transition flex items-center gap-1">
                     <IconDownload size={12} /> Facture
                   </button>
                 )}
+                
                 {(order.status === 'pending' || order.status === 'awaiting_payment') && (
                   <>
                     <button onClick={() => setPaymentOrder(order)}
@@ -159,7 +165,7 @@ export default function OrdersPage() {
                     </button>
                     <button onClick={() => cancelOrder(order.id)}
                       className="w-7 h-7 bg-red-50 text-red-400 rounded-full flex items-center justify-center text-sm">
-                      ✕
+                      🗑
                     </button>
                   </>
                 )}
