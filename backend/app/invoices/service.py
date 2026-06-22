@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime
 from sqlalchemy.orm import Session
 from ..models import Order, OrderItem, Invoice, User
+from ..config import settings
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
@@ -16,9 +17,7 @@ def generate_invoice_pdf(order_id: str, db: Session) -> str:
     if not order:
         return None
     
-    # Recuperer les infos client
     client = db.query(User).filter(User.id == order.user_id).first()
-    
     items = db.query(OrderItem).filter(OrderItem.order_id == order_id).all()
     
     filename = f"facture_{order_id[:8]}_{uuid.uuid4().hex[:4]}.pdf"
@@ -45,13 +44,13 @@ def generate_invoice_pdf(order_id: str, db: Session) -> str:
     c.setFont("Helvetica-Bold", 22)
     c.drawString(30, height - 160, "FACTURE")
     
-    # Infos facture (gauche)
+    # Infos facture
     c.setFont("Helvetica", 10)
     c.drawString(30, height - 185, f"Facture N: FAC-{order.id[:8].upper()}")
     c.drawString(30, height - 200, f"Date: {order.created_at.strftime('%d/%m/%Y a %H:%M')}")
     c.drawString(30, height - 215, f"Commande N: CMD-{order.id[:8].upper()}")
     
-    # Infos client (droite)
+    # Infos client
     if client:
         c.setFont("Helvetica-Bold", 11)
         c.drawString(width - 250, height - 185, "CLIENT")
@@ -59,7 +58,7 @@ def generate_invoice_pdf(order_id: str, db: Session) -> str:
         c.drawString(width - 250, height - 200, f"Nom: {client.full_name}")
         c.drawString(width - 250, height - 215, f"Email: {client.email}")
     
-    # Ligne de separation
+    # Separation
     c.setStrokeColor(colors.HexColor('#1a73e8'))
     c.setLineWidth(1)
     c.line(30, height - 235, width - 30, height - 235)
@@ -75,7 +74,6 @@ def generate_invoice_pdf(order_id: str, db: Session) -> str:
     c.drawString(380, y + 2, "Qte")
     c.drawString(440, y + 2, "Total")
     
-    # Lignes
     y -= 30
     c.setFont("Helvetica", 9)
     for item in items:
@@ -96,7 +94,7 @@ def generate_invoice_pdf(order_id: str, db: Session) -> str:
     c.setFillColor(colors.HexColor('#1a73e8'))
     c.drawString(440, y, f"{float(order.total_amount or 0):,.0f} Ar")
     
-    # Mention paiement
+    # Mention
     c.setFillColor(colors.gray)
     c.setFont("Helvetica", 9)
     c.drawString(30, y - 30, f"Statut: {order.status}")
@@ -110,14 +108,18 @@ def generate_invoice_pdf(order_id: str, db: Session) -> str:
     
     c.save()
     
+    # URL dynamique (pas localhost)
+    base_url = settings.BASE_URL or "http://localhost:8000"
+    pdf_url = f"{base_url}/uploads/{filename}"
+    
     invoice = db.query(Invoice).filter(Invoice.order_id == order_id).first()
     if not invoice:
         invoice = Invoice(order_id=order_id)
         db.add(invoice)
-    invoice.pdf_url = f"http://localhost:8000/uploads/{filename}"
+    invoice.pdf_url = pdf_url
     db.commit()
     
-    return invoice.pdf_url
+    return pdf_url
 
 def get_invoice(db: Session, order_id: str):
     return db.query(Invoice).filter(Invoice.order_id == order_id).first()

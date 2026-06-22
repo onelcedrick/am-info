@@ -21,6 +21,7 @@ from .payments.router import router as payments_router, admin_router as payments
 from .logs.router import router as logs_router
 from .websocket.router import router as ws_router
 from .settings.router import router as settings_router
+from .invoices.router import router as invoices_router, client_router as invoices_client_router
 
 app = FastAPI(title="AM Info API", version="1.0")
 register_exception_handlers(app)
@@ -50,6 +51,8 @@ app.include_router(payments_admin_router)
 app.include_router(logs_router)
 app.include_router(ws_router)
 app.include_router(settings_router)
+app.include_router(invoices_router)
+app.include_router(invoices_client_router)
 
 @app.get("/")
 def root():

@@ -60,3 +60,14 @@ def change_status(order_id: str, status: str, db: Session = Depends(get_db)):
     log_activity(db, "admin", "status_change", "order", order_id, f"Nouveau statut: {status}")
     cache.delete("dashboard:admin_stats"); cache.delete("products:popular")
     return result
+
+@router.get("/{order_id}/invoice")
+def get_order_invoice(order_id: str, payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    from ..invoices import service as invoice_service
+    order = db.query(Order).filter(Order.id == order_id, Order.user_id == payload.get("sub")).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Commande non trouvee")
+    invoice = invoice_service.get_invoice(db, order_id)
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Facture non generee")
+    return {"pdf_url": invoice.pdf_url}
