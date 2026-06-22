@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from sqlalchemy.orm import Session
 from ..models import Order, OrderItem, CartItem, Product
+from ..discounts.service import calculate_product_discount
 
 def create_order(db: Session, user_id: str):
     cart_items = db.query(CartItem).filter(CartItem.user_id == user_id).all()
@@ -13,6 +14,7 @@ def create_order(db: Session, user_id: str):
             return None, f"Stock insuffisant pour {product.name if product else 'produit'}"
     
     total = 0
+    total_discount = 0
     order = Order(user_id=user_id, status="awaiting_payment")
     db.add(order)
     db.flush()
@@ -20,20 +22,25 @@ def create_order(db: Session, user_id: str):
     for cart_item in cart_items:
         product = db.query(Product).filter(Product.id == cart_item.product_id).first()
         if product:
-            price = float(product.price)
+            discount_info = calculate_product_discount(product, db)
+            price = discount_info["final_price"]
+            original_price = discount_info["original_price"]
             line_total = price * cart_item.quantity
+            line_discount = discount_info["discount_amount"] * cart_item.quantity
             total += line_total
+            total_discount += line_discount
             
             order_item = OrderItem(
                 order_id=order.id, product_id=product.id,
                 quantity=cart_item.quantity, unit_price=price,
                 product_name=product.name, product_image=product.image_url,
-                discount_applied=0
+                discount_applied=line_discount
             )
             db.add(order_item)
             product.stock_quantity -= cart_item.quantity
     
     order.total_amount = total
+    order.discount_amount = total_discount
     db.commit()
     db.refresh(order)
     
