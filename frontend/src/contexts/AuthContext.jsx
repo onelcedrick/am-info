@@ -1,5 +1,5 @@
 // -*- coding: utf-8 -*-
-import { createContext, useState, useEffect } from 'react';
+import { createContext, useState, useEffect, useContext } from 'react';
 import api from '../api/axios';
 
 export const AuthContext = createContext();
@@ -54,14 +54,13 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    // Nettoyer le stockage
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('dev_role');
     setUser(null);
     
-    // Vider l'historique pour empecher le retour arriere
-    window.location.replace('/login');
+    // Redirige vers l'accueil au lieu du login
+    window.location.replace('/');
   };
 
   const isAuthenticated = !!user;
@@ -78,5 +77,3 @@ export const useAuth = () => {
   if (!context) throw new Error('useAuth doit être utilisé dans un AuthProvider');
   return context;
 };
-
-import { useContext } from 'react';
