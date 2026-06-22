@@ -57,6 +57,10 @@ def clear_messages(db: Session, ticket_id: str):
     db.query(TicketMessage).filter(TicketMessage.ticket_id == ticket_id).delete()
     db.commit()
 
+def delete_message(db: Session, msg_id: str):
+    db.query(TicketMessage).filter(TicketMessage.id == msg_id).delete()
+    db.commit()
+
 def assign_technician(db: Session, ticket_id: str, technician_id: str):
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     if ticket:
@@ -96,16 +100,29 @@ def search_tickets(db: Session, search: str = None, status: str = None, priority
     
     return query.order_by(Ticket.created_at.desc()).all()
 
-# Dans tickets/service.py, ajouter :
-def delete_message(db: Session, msg_id: str):
-    msg = db.query(TicketMessage).filter(TicketMessage.id == msg_id).first()
-    if msg:
-        db.delete(msg)
-        db.commit()
-def delete_message(db: Session, msg_id: str):
-    msg = db.query(TicketMessage).filter(TicketMessage.id == msg_id).first()
-    if msg:
-        db.delete(msg)
-        db.commit()
-        return True
-    return False
+def delete_ticket(db: Session, ticket_id: str, user_id: str, user_role: str):
+    """
+    Supprime un ticket.
+    - Client : peut supprimer UNIQUEMENT ses propres tickets
+    - Technicien : peut supprimer les tickets qui lui sont assignés
+    Retourne (True, None) si succès, (False, message_erreur) sinon.
+    """
+    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+    if not ticket:
+        return False, "Ticket introuvable"
+    
+    if user_role == 'client':
+        if str(ticket.client_id) != str(user_id):
+            return False, "Vous ne pouvez supprimer que vos propres tickets"
+    elif user_role == 'technician':
+        if str(ticket.technician_id) != str(user_id):
+            return False, "Vous ne pouvez supprimer que les tickets qui vous sont assignés"
+    else:
+        return False, "Action non autorisée"
+    
+    # Supprimer les messages associés d'abord
+    db.query(TicketMessage).filter(TicketMessage.ticket_id == ticket_id).delete()
+    # Supprimer le ticket
+    db.delete(ticket)
+    db.commit()
+    return True, None

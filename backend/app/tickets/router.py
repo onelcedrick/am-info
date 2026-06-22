@@ -96,6 +96,28 @@ def delete_message(ticket_id: str, msg_id: str, payload: dict = Depends(get_curr
     log_activity(db, payload.get("sub"), "delete", "message", msg_id, "Message supprime")
     return {"message": "Message supprime"}
 
+# NOUVEAU : Client supprime son ticket
+@router.delete("/{ticket_id}")
+def delete_client_ticket(ticket_id: str, payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    if payload.get("role") != "client":
+        raise HTTPException(status_code=403, detail="Action reservee aux clients")
+    success, error = ticket_service.delete_ticket(db, ticket_id, payload.get("sub"), "client")
+    if not success:
+        raise HTTPException(status_code=400, detail=error)
+    log_activity(db, payload.get("sub"), "delete", "ticket", ticket_id, "Ticket supprime par client")
+    return {"message": "Ticket supprime"}
+
+# NOUVEAU : Technicien supprime un ticket assigné
+@technician_router.delete("/{ticket_id}")
+def delete_technician_ticket(ticket_id: str, payload: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    if payload.get("role") not in ["technician", "admin"]:
+        raise HTTPException(status_code=403, detail="Action non autorisee")
+    success, error = ticket_service.delete_ticket(db, ticket_id, payload.get("sub"), "technician")
+    if not success:
+        raise HTTPException(status_code=400, detail=error)
+    log_activity(db, payload.get("sub"), "delete", "ticket", ticket_id, "Ticket supprime par technicien")
+    return {"message": "Ticket supprime"}
+
 @technician_router.get("")
 def tech_tickets(payload: dict = Depends(get_current_user), search: str = Query(None), status: str = Query(None), priority: str = Query(None), db: Session = Depends(get_db)):
     return ticket_service.search_tickets(db, search=search, status=status, priority=priority, role='technician', user_id=payload.get("sub"))
