@@ -146,3 +146,11 @@ class ActivityLog(Base):
     details = Column(Text, nullable=True)
     ip_address = Column(String(45), nullable=True)
     created_at = Column(DateTime, default=now_madagascar)
+
+class SiteSetting(Base):
+    __tablename__ = 'site_settings'
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    key = Column(String(100), unique=True, nullable=False, index=True)
+    value = Column(Text, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

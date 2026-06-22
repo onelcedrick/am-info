@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../contexts/ThemeContext';
-import { IconDashboard, IconPackage, IconLogout, IconSun, IconMoon, IconOrders, IconUser, IconLogs, IconPlus } from '../components/Icons';
+import { IconDashboard, IconPackage, IconLogout, IconSun, IconMoon, IconOrders, IconUser, IconLogs, IconPlus, IconSettings } from '../components/Icons';
 
 const IconDiscount = ({ size = 16 }) => (
   <svg width={size} height={size} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -54,6 +54,7 @@ export default function AdminLayout() {
     { to: '/admin/users', icon: <IconPlus size={20} />, label: 'Utilisateurs' },
     { to: '/admin/invoices', icon: <IconInvoice size={20} />, label: 'Factures' },
     { to: '/admin/logs', icon: <IconLogs size={20} />, label: 'Logs' },
+    { to: '/admin/settings', icon: <IconSettings size={20} />, label: 'Paramètres' },
   ];
 
   return (
