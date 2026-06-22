@@ -19,25 +19,20 @@ const IconHome = ({ size = 20 }) => (
   </svg>
 );
 
-const IconInfo = ({ size = 20 }) => (
-  <svg width={size} height={size} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-  </svg>
-);
-
-// Composant Logo dynamique
+// Composant Logo dynamique - image + nom toujours visible
 function LogoDisplay() {
   const { logoUrl } = useSettings();
-  if (logoUrl) {
-    return <img src={logoUrl} alt="AM Info" className="h-8 w-auto object-contain" />;
-  }
   return (
-    <>
-      <div className="bg-blue-600 text-white p-1.5 rounded-lg">
-        <IconPackage size={20} />
-      </div>
+    <div className="flex items-center gap-2">
+      {logoUrl ? (
+        <img src={logoUrl} alt="AM Info" className="h-8 w-auto object-contain" />
+      ) : (
+        <div className="bg-blue-600 text-white p-1.5 rounded-lg">
+          <IconPackage size={20} />
+        </div>
+      )}
       <span className="font-bold text-lg text-blue-900">AM Info</span>
-    </>
+    </div>
   );
 }
 
@@ -67,7 +62,7 @@ export default function ClientLayout() {
       <nav className="bg-white border-b border-gray-200 flex-shrink-0 z-30">
         <div className="px-4 md:px-6">
           <div className="flex justify-between items-center h-14">
-            {/* Logo - UTILISE LogoDisplay ICI */}
+            {/* Logo */}
             <Link to="/" className="flex items-center gap-2">
               <LogoDisplay />
             </Link>
