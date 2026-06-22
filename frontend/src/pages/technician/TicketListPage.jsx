@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import useConfirm from '../../hooks/useConfirm';
+import { IconTrash } from '../../components/Icons';
 
 const token = localStorage.getItem('token');
 const userId = (() => {
@@ -20,6 +21,27 @@ function getMessageImageUrl(url) {
   if (url.startsWith('http')) return url;
   return API_URL + url;
 }
+
+// Heure Madagascar (UTC+3)
+function formatMDG(isoString) {
+  if (!isoString) return '';
+  return new Date(isoString).toLocaleTimeString('fr-FR', {
+    hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Nairobi'
+  });
+}
+function formatMDGDate(isoString) {
+  if (!isoString) return '';
+  return new Date(isoString).toLocaleDateString('fr-FR', {
+    day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Africa/Nairobi'
+  });
+}
+
+const sLabels = { open: 'Ouvert', assigned: 'Assigné', in_progress: 'En cours', resolved: 'Résolu', closed: 'Fermé' };
+const sColors = { open: 'bg-yellow-100 text-yellow-800', assigned: 'bg-blue-100 text-blue-800', in_progress: 'bg-purple-100 text-purple-800', resolved: 'bg-green-100 text-green-800', closed: 'bg-gray-100 text-gray-800' };
+const pLabels = { low: 'Faible', normal: 'Normal', high: 'Haute', urgent: 'Urgent' };
+const pColors = { low: 'bg-green-100 text-green-800', normal: 'bg-blue-100 text-blue-800', high: 'bg-orange-100 text-orange-800', urgent: 'bg-red-100 text-red-800' };
+const pIcons = { low: '🟢', normal: '🔵', high: '🟠', urgent: '🔴' };
+const slaTargets = { low: '24h', normal: '4h', high: '1h', urgent: '15min' };
 
 export default function TicketListPage() {
   const [tickets, setTickets] = useState([]);
@@ -126,6 +148,19 @@ export default function TicketListPage() {
   const assignToMe = async (id) => { await api.put(`/technician/tickets/${id}/assign`); toast.success('Assigné'); loadTickets(); };
   const changeStatus = async (id, status) => { await api.put(`/technician/tickets/${id}/status?status=${status}`); toast.success('Statut modifié'); loadTickets(); };
 
+  const deleteTicket = async (id) => {
+    const ok = await confirm('Supprimer le ticket', 'Cette action est irréversible. Le ticket sera supprimé définitivement.');
+    if (!ok) return;
+    try {
+      await api.delete(`/technician/tickets/${id}`);
+      toast.success('Ticket supprimé');
+      if (selectedTicket?.id === id) setSelectedTicket(null);
+      loadTickets();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Erreur suppression');
+    }
+  };
+
   const getMessageStyle = (m) => {
     const msgId = String(m.sender_id || ''); const myId = String(userId || '');
     if (msgId === myId) return { align: 'justify-end', bg: 'bg-teal-600 text-white rounded-br-md', label: '' };
@@ -137,11 +172,6 @@ export default function TicketListPage() {
 
   const getSlaColor = (c) => ({ red: 'bg-red-500', orange: 'bg-orange-500', yellow: 'bg-yellow-500' }[c] || 'bg-green-500');
   const getSlaBg = (c) => ({ red: 'bg-red-50 text-red-700 border-red-200', orange: 'bg-orange-50 text-orange-700 border-orange-200', yellow: 'bg-yellow-50 text-yellow-700 border-yellow-200' }[c] || 'bg-green-50 text-green-700 border-green-200');
-  const pLabels = { low: 'Faible', normal: 'Normal', high: 'Haute', urgent: 'Urgent' };
-  const pIcons = { low: '🟢', normal: '🔵', high: '🟠', urgent: '🔴' };
-  const slaTargets = { low: '24h', normal: '4h', high: '1h', urgent: '15min' };
-  const sLabels = { open: 'Ouvert', assigned: 'Assigné', in_progress: 'En cours', resolved: 'Résolu', closed: 'Fermé' };
-  const sColors = { open: 'bg-yellow-100 text-yellow-800', assigned: 'bg-blue-100 text-blue-800', in_progress: 'bg-purple-100 text-purple-800', resolved: 'bg-green-100 text-green-800', closed: 'bg-gray-100 text-gray-800' };
 
   const selectTicket = (ticket) => { setSelectedTicket(ticket); setAutoScroll(true); setShowMobileChat(true); };
   const backToList = () => { setShowMobileChat(false); };
@@ -164,10 +194,35 @@ export default function TicketListPage() {
         <div className="hidden md:grid md:grid-cols-2 gap-4 h-full">
           <div className="space-y-2 overflow-y-auto h-full">
             {tickets.length === 0 ? <div className="text-center text-gray-400 py-8">Aucun ticket</div> : tickets.map(t => (
-              <div key={t.id} onClick={() => selectTicket(t)} className={`bg-white rounded-xl shadow-sm border p-4 cursor-pointer hover:shadow-md transition ${selectedTicket?.id === t.id ? 'ring-2 ring-teal-500 border-teal-500' : 'border-gray-100'}`}>
-                <div className="flex justify-between items-start mb-2"><div className="flex items-center gap-2 flex-1 min-w-0"><span className="text-xs">{pIcons[t.priority]}</span><h3 className="font-bold text-sm truncate">{t.subject}</h3></div><span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-semibold ${sColors[t.status]}`}>{sLabels[t.status]}</span></div>
+              <div key={t.id} onClick={() => selectTicket(t)} className={`bg-white rounded-xl shadow-sm border p-4 cursor-pointer hover:shadow-md transition relative group ${selectedTicket?.id === t.id ? 'ring-2 ring-teal-500 border-teal-500' : 'border-gray-100'}`}>
+                <div className="flex justify-between items-start mb-1">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <h3 className="font-bold text-sm truncate">{t.subject}</h3>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {t.status === 'open' && <button onClick={e => { e.stopPropagation(); assignToMe(t.id); }} className="bg-teal-600 text-white px-2 py-1 rounded text-[10px] hover:bg-teal-700">S'assigner</button>}
+                    <button onClick={e => { e.stopPropagation(); deleteTicket(t.id); }} className="text-gray-400 hover:text-red-500 transition p-1" title="Supprimer">
+                      <IconTrash size={16} />
+                    </button>
+                  </div>
+                </div>
                 <p className="text-xs text-gray-500 mb-2 line-clamp-2">{t.description}</p>
-                <div className="flex justify-between items-center"><span className="text-xs text-gray-400">{pLabels[t.priority]} · {slaTargets[t.priority]}</span>{t.status === 'open' ? <button onClick={e => { e.stopPropagation(); assignToMe(t.id); }} className="bg-teal-600 text-white px-3 py-1 rounded-full text-xs">Prendre</button> : <select value={t.status} onClick={e => e.stopPropagation()} onChange={e => { e.stopPropagation(); changeStatus(t.id, e.target.value); }} className={`px-2 py-0.5 rounded-full text-xs font-semibold cursor-pointer ${sColors[t.status]}`}><option value="assigned">Assigné</option><option value="in_progress">En cours</option><option value="resolved">Résolu</option><option value="closed">Fermé</option></select>}</div>
+                <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${sColors[t.status] || 'bg-gray-100 text-gray-800'}`}>{sLabels[t.status] || t.status}</span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${pColors[t.priority] || 'bg-gray-100 text-gray-800'}`}>{pLabels[t.priority] || t.priority}</span>
+                  {t.sla && <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium border ${getSlaBg(t.sla.sla_color)}`}>SLA: {t.sla.remaining}</span>}
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] text-gray-400">{formatMDGDate(t.created_at)}</span>
+                  {t.status !== 'open' && (
+                    <select value={t.status} onClick={e => e.stopPropagation()} onChange={e => { e.stopPropagation(); changeStatus(t.id, e.target.value); }} className={`px-2 py-0.5 rounded-full text-[10px] font-semibold cursor-pointer ${sColors[t.status]}`}>
+                      <option value="assigned">Assigné</option>
+                      <option value="in_progress">En cours</option>
+                      <option value="resolved">Résolu</option>
+                      <option value="closed">Fermé</option>
+                    </select>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -191,7 +246,7 @@ export default function TicketListPage() {
                         <div className={`max-w-[85%] p-2.5 rounded-2xl ${style.bg} relative`}>
                           {style.label && <p className={`text-[10px] font-semibold mb-1 ${isBot ? 'text-blue-600' : 'text-gray-500'}`}>{style.label}</p>}
                           {isEditing ? <div className="flex gap-1"><input value={editText} onChange={e => setEditText(e.target.value)} className="flex-1 px-2 py-1 border rounded text-xs" autoFocus onKeyPress={e => e.key === 'Enter' && saveEdit(m.id)} /><button onClick={() => saveEdit(m.id)} className="text-green-500 font-semibold text-xs">OK</button></div>
-                          : <>{imgUrl ? <a href={imgUrl} target="_blank" rel="noopener noreferrer"><img src={imgUrl} alt="" className="rounded-lg mb-1 max-w-full" /></a> : <p className="text-sm">{m.message}</p>}<p className="text-[10px] mt-1 opacity-60">{new Date(m.created_at).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})}</p></>}
+                          : <>{imgUrl ? <a href={imgUrl} target="_blank" rel="noopener noreferrer"><img src={imgUrl} alt="" className="rounded-lg mb-1 max-w-full" /></a> : <p className="text-sm">{m.message}</p>}<p className="text-[10px] mt-1 opacity-60">{formatMDG(m.created_at)}</p></>}
                           {!isBot && !isEditing && <div className="hidden group-hover:flex absolute -top-2 right-2 gap-1">{isMine && <button onClick={(e) => { e.stopPropagation(); startEdit(m); }} className="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px]" title="Modifier">✎</button>}<button onClick={(e) => { e.stopPropagation(); deleteMessage(m.id); }} className="bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px]" title="Supprimer">✕</button></div>}
                         </div>
                       </div>
@@ -216,10 +271,24 @@ export default function TicketListPage() {
           {!showMobileChat ? (
             <div className="space-y-2 overflow-y-auto h-full pb-4">
               {tickets.length === 0 ? <div className="text-center text-gray-400 py-8">Aucun ticket</div> : tickets.map(t => (
-                <div key={t.id} onClick={() => selectTicket(t)} className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 cursor-pointer">
-                  <div className="flex justify-between items-start mb-1"><div className="flex items-center gap-1 flex-1 min-w-0"><span className="text-xs">{pIcons[t.priority]}</span><h3 className="font-bold text-sm truncate">{t.subject}</h3></div><span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${sColors[t.status]}`}>{sLabels[t.status]}</span></div>
+                <div key={t.id} onClick={() => selectTicket(t)} className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 cursor-pointer relative">
+                  <div className="flex justify-between items-start mb-1">
+                    <div className="flex items-center gap-1 flex-1 min-w-0">
+                      <h3 className="font-bold text-sm truncate">{t.subject}</h3>
+                    </div>
+                    <button onClick={e => { e.stopPropagation(); deleteTicket(t.id); }} className="text-gray-400 hover:text-red-500 p-1 ml-1" title="Supprimer">
+                      <IconTrash size={16} />
+                    </button>
+                  </div>
                   <p className="text-xs text-gray-500 mb-1 line-clamp-1">{t.description}</p>
-                  <div className="flex justify-between items-center"><span className="text-[10px] text-gray-400">{slaTargets[t.priority]}</span>{t.status === 'open' ? <button onClick={e => { e.stopPropagation(); assignToMe(t.id); }} className="bg-teal-600 text-white px-2 py-0.5 rounded-full text-[10px]">Prendre</button> : <span className="text-[10px] text-gray-500">{sLabels[t.status]}</span>}</div>
+                  <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${sColors[t.status] || 'bg-gray-100 text-gray-800'}`}>{sLabels[t.status] || t.status}</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${pColors[t.priority] || 'bg-gray-100 text-gray-800'}`}>{pLabels[t.priority] || t.priority}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] text-gray-400">{formatMDGDate(t.created_at)}</span>
+                    {t.status === 'open' ? <button onClick={e => { e.stopPropagation(); assignToMe(t.id); }} className="bg-teal-600 text-white px-2 py-0.5 rounded-full text-[10px]">Prendre</button> : <span className="text-[10px] text-gray-500">{sLabels[t.status]}</span>}
+                  </div>
                 </div>
               ))}
             </div>
@@ -239,7 +308,7 @@ export default function TicketListPage() {
                           <div className={`max-w-[85%] p-2.5 rounded-2xl ${style.bg}`}>
                             {style.label && <p className={`text-[10px] font-semibold mb-1 ${isBot ? 'text-blue-600' : 'text-gray-500'}`}>{style.label}</p>}
                             {imgUrl ? <a href={imgUrl} target="_blank" rel="noopener noreferrer"><img src={imgUrl} alt="" className="rounded-lg mb-1 max-w-full" /></a> : <p className="text-sm">{m.message}</p>}
-                            <p className="text-[10px] mt-1 opacity-60">{new Date(m.created_at).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})}</p>
+                            <p className="text-[10px] mt-1 opacity-60">{formatMDG(m.created_at)}</p>
                           </div>
                         </div>
                       );

@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import VideoCall from '../../components/VideoCall';
 import Rating from '../../components/Rating';
+import { IconTrash } from '../../components/Icons';
 
 const token = localStorage.getItem('token');
 const userId = (() => {
@@ -12,7 +13,33 @@ const userId = (() => {
   catch { return null; }
 })();
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws';
+
+function getMessageImageUrl(url) {
+  if (!url) return null;
+  if (url.startsWith('http')) return url;
+  return API_URL + url;
+}
+
+// Heure Madagascar (UTC+3)
+function formatMDG(isoString) {
+  if (!isoString) return '';
+  return new Date(isoString).toLocaleTimeString('fr-FR', {
+    hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Nairobi'
+  });
+}
+function formatMDGDate(isoString) {
+  if (!isoString) return '';
+  return new Date(isoString).toLocaleDateString('fr-FR', {
+    day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Africa/Nairobi'
+  });
+}
+
+const pLabels = { low: 'Faible', normal: 'Normal', high: 'Haute', urgent: 'Urgent' };
+const pColors = { low: 'bg-green-100 text-green-800', normal: 'bg-blue-100 text-blue-800', high: 'bg-orange-100 text-orange-800', urgent: 'bg-red-100 text-red-800' };
+const sLabels = { open: 'Ouvert', assigned: 'Assigné', in_progress: 'En cours', resolved: 'Résolu', closed: 'Fermé' };
+const sColors = { open: 'bg-yellow-100 text-yellow-800', assigned: 'bg-blue-100 text-blue-800', in_progress: 'bg-purple-100 text-purple-800', resolved: 'bg-green-100 text-green-800', closed: 'bg-gray-100 text-gray-800' };
 
 export default function TicketPage() {
   const [tickets, setTickets] = useState([]);
@@ -24,8 +51,6 @@ export default function TicketPage() {
   const [showForm, setShowForm] = useState(false);
   const [typing, setTyping] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState(null);
   const [preview, setPreview] = useState(null);
   const [botThinking, setBotThinking] = useState(false);
   const [showCall, setShowCall] = useState(false);
@@ -38,7 +63,6 @@ export default function TicketPage() {
   const fileInputRef = useRef(null);
 
   const ticket = tickets.find(t => t.id === ticketId);
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   const loadTickets = () => api.get('/tickets').then(r => setTickets(r.data));
   const loadMessages = () => ticketId && api.get(`/tickets/${ticketId}`).then(r => setMessages(r.data.messages || []));
@@ -91,32 +115,30 @@ export default function TicketPage() {
 
   const clearHistory = async () => {
     if (!ticketId) return;
-    if (!confirm('Effacer tout l\'historique ?')) return;
+    if (!confirm("Effacer tout l'historique ?")) return;
     try { await api.delete(`/tickets/${ticketId}/messages`); toast.success('Historique effacé'); setMessages([]); loadMessages(); }
     catch (err) { toast.error('Erreur'); }
   };
 
+  const deleteTicket = async (id, e) => {
+    e.stopPropagation();
+    if (!confirm('Supprimer ce ticket ? Cette action est irréversible.')) return;
+    try {
+      await api.delete(`/tickets/${id}`);
+      toast.success('Ticket supprimé');
+      if (ticketId === id) { setTicketId(null); setShowMobileChat(false); }
+      loadTickets();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Erreur suppression');
+    }
+  };
+
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
-    if (!file) return;
-    setAnalysisResult(null);
+    if (!file || !ticketId) return;
     const reader = new FileReader();
     reader.onload = (ev) => setPreview(ev.target.result);
     reader.readAsDataURL(file);
-  };
-
-  const analyzePhoto = async () => {
-    const file = fileInputRef.current?.files[0];
-    if (!file) return;
-    setAnalyzing(true);
-    const formData = new FormData();
-    formData.append('file', file);
-    try {
-      const res = await api.post('/recommendations/analyze-image', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      setAnalysisResult(res.data);
-      toast.success(`Pièce identifiée : ${res.data.name}`);
-    } catch (err) { toast.error('Erreur analyse IA'); }
-    finally { setAnalyzing(false); }
   };
 
   const uploadPhoto = async () => {
@@ -125,13 +147,11 @@ export default function TicketPage() {
     setUploading(true);
     const formData = new FormData();
     formData.append('file', file);
-    let msg = 'Photo de la pièce';
-    if (analysisResult) msg = `📸 ${analysisResult.name} (${analysisResult.confidence}%)\n🔍 ${analysisResult.diagnostic}`;
     try {
       await api.post(`/tickets/${ticketId}/upload`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      if (analysisResult) await api.post(`/tickets/${ticketId}/messages`, { message: msg });
       if (wsRef.current?.readyState === WebSocket.OPEN) wsRef.current.send(JSON.stringify({ action: 'message', ticket_id: ticketId }));
-      setPreview(null); setAnalysisResult(null); fileInputRef.current.value = ''; setAutoScroll(true); loadMessages();
+      setPreview(null); fileInputRef.current.value = ''; setAutoScroll(true); loadMessages();
+      toast.success('Photo envoyée');
     } catch (err) { toast.error('Erreur envoi photo'); }
     finally { setUploading(false); }
   };
@@ -143,12 +163,19 @@ export default function TicketPage() {
   };
 
   const getMessageStyle = (m) => {
-    if (String(m.sender_id) === String(userId)) return { align: 'justify-end', bg: 'bg-blue-600 text-white rounded-br-md', label: '' };
-    if (m.is_from_bot || m.sender_id === 'bot') return { align: 'justify-start', bg: 'bg-blue-50 border border-blue-200 text-gray-800 rounded-bl-md', label: 'Assistant' };
+    const msgSender = String(m.sender_id || '');
+    const currentUser = String(userId || '');
+    if (msgSender === currentUser) return { align: 'justify-end', bg: 'bg-blue-600 text-white rounded-br-md', label: '' };
+    if (m.is_from_bot || msgSender === 'bot') return { align: 'justify-start', bg: 'bg-blue-50 border border-blue-200 text-gray-800 rounded-bl-md', label: 'Assistant' };
     return { align: 'justify-start', bg: 'bg-white shadow border text-gray-800 rounded-bl-md', label: 'Technicien' };
   };
 
   const scrollToBottom = () => { setAutoScroll(true); messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); };
+  const handleScroll = () => {
+    if (!messagesContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+    setAutoScroll(scrollHeight - scrollTop - clientHeight < 100);
+  };
 
   return (
     <div className="h-full flex flex-col">
@@ -159,7 +186,6 @@ export default function TicketPage() {
         </div>
       )}
 
-      {/* Header */}
       <div className="flex-shrink-0 flex justify-between items-center mb-4">
         <h1 className="text-xl md:text-2xl font-bold">Maintenance</h1>
         <div className="flex gap-2">
@@ -177,28 +203,42 @@ export default function TicketPage() {
         </form>
       )}
 
-      {/* Contenu */}
       <div className="flex-1 overflow-hidden">
         {/* Desktop */}
         <div className="hidden md:grid md:grid-cols-3 gap-4 h-full">
           <div className="space-y-2 overflow-y-auto h-full">
             {tickets.map(t => (
               <div key={t.id} onClick={() => { setTicketId(t.id); setAutoScroll(true); }}
-                className={`bg-white rounded-xl shadow-sm border p-3 cursor-pointer hover:shadow-md transition ${ticketId === t.id ? 'ring-2 ring-blue-500 border-blue-500' : 'border-gray-100'}`}>
-                <h3 className="font-bold text-sm truncate">{t.subject}</h3>
-                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">{t.status}</span>
+                className={`bg-white rounded-xl shadow-sm border p-3 cursor-pointer hover:shadow-md transition relative group ${ticketId === t.id ? 'ring-2 ring-blue-500 border-blue-500' : 'border-gray-100'}`}>
+                <div className="flex justify-between items-start mb-1">
+                  <h3 className="font-bold text-sm truncate flex-1 pr-2">{t.subject}</h3>
+                  <button onClick={(e) => deleteTicket(t.id, e)} className="text-gray-400 hover:text-red-500 transition p-1" title="Supprimer">
+                    <IconTrash size={16} />
+                  </button>
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${sColors[t.status] || 'bg-gray-100 text-gray-800'}`}>{sLabels[t.status] || t.status}</span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${pColors[t.priority] || 'bg-gray-100 text-gray-800'}`}>{pLabels[t.priority] || t.priority}</span>
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1">{formatMDGDate(t.created_at)}</p>
               </div>
             ))}
+            {tickets.length === 0 && <div className="text-center text-gray-400 py-8 text-sm">Aucun ticket. Créez-en un !</div>}
           </div>
           <div className="col-span-2 h-full">
             {ticket ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-full">
-                <div className="p-4 border-b flex items-center gap-2 flex-shrink-0">
-                  <h2 className="font-bold text-sm flex-1 truncate">{ticket.subject}</h2>
-                  {typing && <span className="text-xs text-gray-400 animate-pulse">Écrit...</span>}
-                  <button onClick={clearHistory} className="text-xs text-red-400 hover:text-red-600">Effacer</button>
+                <div className="p-3 border-b flex justify-between items-center flex-shrink-0 bg-white rounded-t-xl">
+                  <div>
+                    <h2 className="font-bold text-sm md:text-base">{ticket.subject}</h2>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${sColors[ticket.status] || 'bg-gray-100 text-gray-800'}`}>{sLabels[ticket.status] || ticket.status}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${pColors[ticket.priority] || 'bg-gray-100 text-gray-800'}`}>{pLabels[ticket.priority] || ticket.priority}</span>
+                    </div>
+                  </div>
+                  <button onClick={clearHistory} className="text-xs text-red-400 hover:text-red-600">Effacer historique</button>
                 </div>
-                <div ref={messagesContainerRef} onScroll={scrollToBottom ? undefined : undefined} className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+                <div ref={messagesContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50">
                   {messages.length === 0 && !botThinking && (
                     <div className="flex justify-start">
                       <div className="bg-blue-50 border border-blue-200 p-3 rounded-2xl rounded-bl-md max-w-[80%]">
@@ -209,12 +249,13 @@ export default function TicketPage() {
                   )}
                   {messages.map((m, i) => {
                     const style = getMessageStyle(m);
+                    const imgUrl = getMessageImageUrl(m.attachment_url);
                     return (
                       <div key={i} className={`flex ${style.align}`}>
                         <div className={`max-w-[75%] p-3 rounded-2xl ${style.bg}`}>
                           {style.label && <p className={`text-xs font-semibold mb-1 ${m.is_from_bot ? 'text-blue-600' : 'text-gray-500'}`}>{style.label}</p>}
-                          {m.attachment_url ? <a href={m.attachment_url} target="_blank"><img src={m.attachment_url} alt="" className="rounded-lg mb-1 max-w-full" /></a> : <p className="text-sm whitespace-pre-wrap">{m.message}</p>}
-                          <p className="text-xs mt-1 opacity-60">{new Date(m.created_at).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})}</p>
+                          {imgUrl ? <a href={imgUrl} target="_blank" rel="noopener noreferrer"><img src={imgUrl} alt="" className="rounded-lg mb-1 max-w-full" /></a> : <p className="text-sm whitespace-pre-wrap">{m.message}</p>}
+                          <p className="text-xs mt-1 opacity-60">{formatMDG(m.created_at)}</p>
                         </div>
                       </div>
                     );
@@ -226,11 +267,9 @@ export default function TicketPage() {
                   {preview && (
                     <div className="flex justify-end"><div className="bg-white shadow border rounded-2xl p-3 max-w-[75%]">
                       <img src={preview} alt="" className="rounded-lg mb-2 max-w-full max-h-40" />
-                      {analysisResult && <div className="bg-blue-50 rounded-lg p-2 mb-2 text-xs"><p className="font-bold text-blue-700">{analysisResult.icon} {analysisResult.name} ({analysisResult.confidence}%)</p><p className="text-gray-500">{analysisResult.diagnostic}</p></div>}
                       <div className="flex gap-1 flex-wrap">
-                        <button onClick={analyzePhoto} disabled={analyzing} className="bg-purple-600 text-white px-2 py-1 rounded text-xs">{analyzing ? '...' : '🔍 IA'}</button>
-                        <button onClick={uploadPhoto} disabled={uploading} className="bg-green-600 text-white px-2 py-1 rounded text-xs">{uploading ? '...' : '📤'}</button>
-                        <button onClick={() => { setPreview(null); setAnalysisResult(null); }} className="bg-gray-300 px-2 py-1 rounded text-xs">Annuler</button>
+                        <button onClick={uploadPhoto} disabled={uploading} className="bg-green-600 text-white px-2 py-1 rounded text-xs">{uploading ? '...' : '📤 Envoyer'}</button>
+                        <button onClick={() => { setPreview(null); fileInputRef.current.value = ''; }} className="bg-gray-300 px-2 py-1 rounded text-xs">Annuler</button>
                       </div>
                     </div></div>
                   )}
@@ -255,11 +294,21 @@ export default function TicketPage() {
             <div className="space-y-2 overflow-y-auto h-full">
               {tickets.map(t => (
                 <div key={t.id} onClick={() => { setTicketId(t.id); setShowMobileChat(true); setAutoScroll(true); }}
-                  className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 cursor-pointer">
-                  <h3 className="font-bold text-sm truncate">{t.subject}</h3>
-                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">{t.status}</span>
+                  className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 cursor-pointer relative">
+                  <div className="flex justify-between items-start mb-1">
+                    <h3 className="font-bold text-sm truncate flex-1 pr-2">{t.subject}</h3>
+                    <button onClick={(e) => deleteTicket(t.id, e)} className="text-gray-400 hover:text-red-500 p-1" title="Supprimer">
+                      <IconTrash size={16} />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${sColors[t.status] || 'bg-gray-100 text-gray-800'}`}>{sLabels[t.status] || t.status}</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${pColors[t.priority] || 'bg-gray-100 text-gray-800'}`}>{pLabels[t.priority] || t.priority}</span>
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-1">{formatMDGDate(t.created_at)}</p>
                 </div>
               ))}
+              {tickets.length === 0 && <div className="text-center text-gray-400 py-8 text-sm">Aucun ticket. Créez-en un !</div>}
             </div>
           ) : (
             <div className="h-full flex flex-col">
@@ -276,12 +325,13 @@ export default function TicketPage() {
                     )}
                     {messages.map((m, i) => {
                       const style = getMessageStyle(m);
+                      const imgUrl = getMessageImageUrl(m.attachment_url);
                       return (
                         <div key={i} className={`flex ${style.align}`}>
                           <div className={`max-w-[85%] p-2.5 rounded-2xl ${style.bg}`}>
                             {style.label && <p className={`text-[10px] font-semibold mb-1 ${m.is_from_bot ? 'text-blue-600' : 'text-gray-500'}`}>{style.label}</p>}
-                            {m.attachment_url ? <a href={m.attachment_url} target="_blank"><img src={m.attachment_url} alt="" className="rounded-lg mb-1 max-w-full" /></a> : <p className="text-sm whitespace-pre-wrap">{m.message}</p>}
-                            <p className="text-[10px] mt-1 opacity-60">{new Date(m.created_at).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})}</p>
+                            {imgUrl ? <a href={imgUrl} target="_blank" rel="noopener noreferrer"><img src={imgUrl} alt="" className="rounded-lg mb-1 max-w-full" /></a> : <p className="text-sm whitespace-pre-wrap">{m.message}</p>}
+                            <p className="text-[10px] mt-1 opacity-60">{formatMDG(m.created_at)}</p>
                           </div>
                         </div>
                       );
@@ -292,9 +342,8 @@ export default function TicketPage() {
                       <div className="flex justify-end"><div className="bg-white shadow border rounded-2xl p-2 max-w-[85%]">
                         <img src={preview} alt="" className="rounded-lg mb-1 max-w-full max-h-32" />
                         <div className="flex gap-1 flex-wrap">
-                          <button onClick={analyzePhoto} disabled={analyzing} className="bg-purple-600 text-white px-2 py-0.5 rounded text-[10px]">IA</button>
-                          <button onClick={uploadPhoto} disabled={uploading} className="bg-green-600 text-white px-2 py-0.5 rounded text-[10px]">Envoyer</button>
-                          <button onClick={() => { setPreview(null); }} className="bg-gray-300 px-2 py-0.5 rounded text-[10px]">✕</button>
+                          <button onClick={uploadPhoto} disabled={uploading} className="bg-green-600 text-white px-2 py-0.5 rounded text-[10px]">{uploading ? '...' : 'Envoyer'}</button>
+                          <button onClick={() => { setPreview(null); fileInputRef.current.value = ''; }} className="bg-gray-300 px-2 py-0.5 rounded text-[10px]">✕</button>
                         </div>
                       </div></div>
                     )}
@@ -304,7 +353,7 @@ export default function TicketPage() {
                     <label htmlFor="file-upload-mobile" className="bg-gray-100 hover:bg-gray-200 px-2 py-2 rounded-full cursor-pointer text-xs flex-shrink-0">+</label>
                     <input placeholder="Message..." value={text} onChange={e => setText(e.target.value)} className="flex-1 px-3 py-2 border rounded-full text-xs" />
                     <button onClick={askChatbot} className="bg-blue-600 text-white px-2 py-2 rounded-full text-[10px] font-semibold whitespace-nowrap">IA</button>
-                    <button onClick={send} className="bg-gray-700 text-white px-2 py-2 rounded-full text-[10px] font-semibold">→</button>
+                    <button onClick={send} className="bg-gray-700 text-white px-2 py-2 rounded-full text-[10px] font-semibold">Envoyer</button>
                   </div>
                 </>
               )}
@@ -312,10 +361,7 @@ export default function TicketPage() {
           )}
         </div>
       </div>
-
-      {showCall && ticket && (
-        <VideoCall ws={wsRef.current} ticketId={ticketId} recipientId={ticket.technician_id} userId={userId} userName={user?.full_name} onClose={() => { setShowCall(false); setIncomingCall(null); }} />
-      )}
+      {showCall && <VideoCall ticketId={ticketId} onClose={() => setShowCall(false)} />}
     </div>
   );
 }
