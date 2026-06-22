@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useSettings } from '../hooks/useSettings';
 import { useTheme } from '../contexts/ThemeContext';
 import useCartCount from '../hooks/useCartCount';
 import { IconCart, IconUser, IconLogout, IconSun, IconMoon, IconPackage, IconOrders, IconTicket, IconMap, IconClose } from '../components/Icons';
@@ -24,6 +25,22 @@ const IconInfo = ({ size = 20 }) => (
   </svg>
 );
 
+// Composant Logo dynamique
+function LogoDisplay() {
+  const { logoUrl } = useSettings();
+  if (logoUrl) {
+    return <img src={logoUrl} alt="AM Info" className="h-8 w-auto object-contain" />;
+  }
+  return (
+    <>
+      <div className="bg-blue-600 text-white p-1.5 rounded-lg">
+        <IconPackage size={20} />
+      </div>
+      <span className="font-bold text-lg text-blue-900">AM Info</span>
+    </>
+  );
+}
+
 export default function ClientLayout() {
   const { user, isAuthenticated, logout } = useAuth();
   const { dark, toggle } = useTheme();
@@ -32,7 +49,6 @@ export default function ClientLayout() {
   const cartCount = useCartCount();
   const closeMenu = () => setMenuOpen(false);
 
-  // Ordre : Accueil, Produits, Panier, Commandes, Maintenance, Boutique
   const navLinks = [
     { to: '/', icon: <IconHome size={18} />, label: 'Accueil' },
     { to: '/products', icon: <IconPackage size={18} />, label: 'Produits' },
@@ -51,12 +67,9 @@ export default function ClientLayout() {
       <nav className="bg-white border-b border-gray-200 flex-shrink-0 z-30">
         <div className="px-4 md:px-6">
           <div className="flex justify-between items-center h-14">
-            {/* Logo */}
-            <Link to="/" className="text-lg md:text-xl font-bold tracking-tight text-blue-600 flex items-center gap-2">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <IconPackage size={18} />
-              </div>
-              AM Info
+            {/* Logo - UTILISE LogoDisplay ICI */}
+            <Link to="/" className="flex items-center gap-2">
+              <LogoDisplay />
             </Link>
             
             {/* Desktop menu */}
@@ -143,10 +156,7 @@ export default function ClientLayout() {
       <div className={`fixed top-0 right-0 h-full w-72 bg-white z-50 shadow-2xl transform transition-transform duration-300 md:hidden ${menuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <IconPackage size={16} />
-            </div>
-            <span className="font-bold text-gray-800">Menu</span>
+            <LogoDisplay />
           </div>
           <button onClick={closeMenu} className="p-2 text-gray-400 hover:text-gray-600">
             <IconClose size={22} />
