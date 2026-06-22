@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import { EmptyState } from '../../components/Skeleton';
 import PaymentModal from '../../components/PaymentModal';
-import { IconOrders, IconDownload, IconFileText } from '../../components/Icons';
+import { IconDownload } from '../../components/Icons';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -14,9 +14,7 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [paymentOrder, setPaymentOrder] = useState(null);
 
-  useEffect(() => {
-    loadOrders();
-  }, []);
+  useEffect(() => { loadOrders(); }, []);
 
   const loadOrders = () => {
     api.get('/orders/').then(res => setOrders(res.data || [])).finally(() => setLoading(false));
@@ -64,9 +62,7 @@ export default function OrdersPage() {
     ready: 'bg-teal-100 text-teal-800', delivered: 'bg-blue-100 text-blue-800', cancelled: 'bg-red-100 text-red-800'
   };
 
-  const canDownloadInvoice = (status) => {
-    return ['paid', 'preparing', 'ready', 'delivered'].includes(status);
-  };
+  const canDownloadInvoice = (status) => ['paid', 'preparing', 'ready', 'delivered'].includes(status);
 
   if (loading) {
     return (
@@ -93,7 +89,7 @@ export default function OrdersPage() {
     <div>
       <h1 className="text-xl md:text-2xl font-bold mb-4 md:mb-6">Mes Commandes</h1>
 
-      {/* Liste desktop */}
+      {/* Desktop */}
       <div className="hidden md:block space-y-3">
         {orders.map(order => (
           <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-100 px-5 py-4">
@@ -122,9 +118,7 @@ export default function OrdersPage() {
                       Payer
                     </button>
                     <button onClick={() => cancelOrder(order.id)}
-                      className="text-gray-300 hover:text-red-500 transition p-1" title="Annuler">
-                      <IconOrders size={14} />
-                    </button>
+                      className="text-gray-300 hover:text-red-500 transition text-sm">✕</button>
                   </>
                 )}
               </div>
@@ -133,7 +127,7 @@ export default function OrdersPage() {
         ))}
       </div>
 
-      {/* Liste mobile */}
+      {/* Mobile */}
       <div className="md:hidden space-y-2">
         {orders.map(order => (
           <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
@@ -165,7 +159,7 @@ export default function OrdersPage() {
                     </button>
                     <button onClick={() => cancelOrder(order.id)}
                       className="w-7 h-7 bg-red-50 text-red-400 rounded-full flex items-center justify-center text-sm">
-                      <IconOrders size={12} />
+                      ✕
                     </button>
                   </>
                 )}
@@ -175,7 +169,6 @@ export default function OrdersPage() {
         ))}
       </div>
 
-      {/* Modal de paiement */}
       {paymentOrder && (
         <PaymentModal
           orderId={paymentOrder.id}

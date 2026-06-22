@@ -8,6 +8,7 @@ from ..emails import service as email_service
 from ..logs.service import log_activity
 from ..auth.service import decode_token
 from ..redis_client import cache
+from ..models import Order
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 admin_router = APIRouter(prefix="/admin/orders", tags=["admin-orders"])
