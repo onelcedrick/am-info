@@ -5,6 +5,7 @@ import api from '../../api/axios';
 import VideoCall from '../../components/VideoCall';
 import Rating from '../../components/Rating';
 import { IconTrash } from '../../components/Icons';
+import useConfirm from '../../hooks/useConfirm';
 
 const token = localStorage.getItem('token');
 const userId = (() => {
@@ -42,6 +43,7 @@ const sLabels = { open: 'Ouvert', assigned: 'Assigné', in_progress: 'En cours',
 const sColors = { open: 'bg-yellow-100 text-yellow-800', assigned: 'bg-blue-100 text-blue-800', in_progress: 'bg-purple-100 text-purple-800', resolved: 'bg-green-100 text-green-800', closed: 'bg-gray-100 text-gray-800' };
 
 export default function TicketPage() {
+  const { confirm, Modal } = useConfirm(); // ← DÉPLACÉ À L'INTÉRIEUR DU COMPOSANT
   const [tickets, setTickets] = useState([]);
   const [ticketId, setTicketId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -115,14 +117,16 @@ export default function TicketPage() {
 
   const clearHistory = async () => {
     if (!ticketId) return;
-    if (!confirm("Effacer tout l'historique ?")) return;
+    const ok = await confirm('Effacer historique', 'Tous les messages seront supprimés définitivement.');
+    if (!ok) return;
     try { await api.delete(`/tickets/${ticketId}/messages`); toast.success('Historique effacé'); setMessages([]); loadMessages(); }
     catch (err) { toast.error('Erreur'); }
   };
 
   const deleteTicket = async (id, e) => {
     e.stopPropagation();
-    if (!confirm('Supprimer ce ticket ? Cette action est irréversible.')) return;
+    const ok = await confirm('Supprimer le ticket', 'Cette action est irréversible. Le ticket sera supprimé définitivement.');
+    if (!ok) return;
     try {
       await api.delete(`/tickets/${id}`);
       toast.success('Ticket supprimé');
@@ -179,6 +183,7 @@ export default function TicketPage() {
 
   return (
     <div className="h-full flex flex-col">
+      {Modal} {/* ← AJOUTÉ ICI */}
       {incomingCall && (
         <div className="fixed top-4 right-4 bg-green-500 text-white rounded-2xl shadow-2xl p-4 z-50 animate-bounce">
           <p className="font-bold text-sm">Appel entrant</p>

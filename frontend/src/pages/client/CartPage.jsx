@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import { EmptyState } from '../../components/Skeleton';
 import { useAuth } from '../../hooks/useAuth';
+import useConfirm from '../../hooks/useConfirm';
 import { IconCart, IconTrash, IconPackage, IconTag } from '../../components/Icons';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -16,6 +17,7 @@ function getImageUrl(url) {
 }
 
 export default function CartPage() {
+  const { confirm, Modal } = useConfirm();
   const [cart, setCart] = useState({ items: [], total: 0, count: 0, total_savings: 0 });
   const [loading, setLoading] = useState(true);
   const { isAuthenticated } = useAuth();
@@ -29,7 +31,6 @@ export default function CartPage() {
   const loadCart = () => {
     api.get('/cart')
       .then(res => {
-        // Calculer les économies totales si le backend ne les renvoie pas encore
         const items = res.data.items || [];
         const totalSavings = items.reduce((sum, item) => sum + (item.discount_amount || 0), 0);
         setCart({ ...res.data, total_savings: totalSavings });
@@ -45,7 +46,9 @@ export default function CartPage() {
       .catch(err => toast.error(err.response?.data?.detail || 'Erreur'));
   };
 
-  const removeItem = (itemId, name) => {
+  const removeItem = async (itemId, name) => {
+    const ok = await confirm('Retirer du panier', `${name || 'Ce produit'} sera retiré de votre panier.`);
+    if (!ok) return;
     api.delete(`/cart/items/${itemId}`)
       .then(() => {
         toast.success(`${name || 'Produit'} retiré du panier`);
@@ -54,7 +57,9 @@ export default function CartPage() {
       .catch(() => toast.error('Erreur'));
   };
 
-  const createOrder = () => {
+  const createOrder = async () => {
+    const ok = await confirm('Confirmer la commande', 'Voulez-vous créer cette commande ? Le paiement se fera en boutique.');
+    if (!ok) return;
     api.post('/orders')
       .then(() => {
         toast.success('Commande créée ! Paiement en boutique.');
@@ -98,6 +103,7 @@ export default function CartPage() {
 
   return (
     <div>
+      {Modal}
       <h1 className="text-xl md:text-2xl font-bold mb-4 md:mb-6">Mon Panier ({cart.count})</h1>
 
       {/* Liste des articles */}
