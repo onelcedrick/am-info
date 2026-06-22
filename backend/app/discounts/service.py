@@ -37,7 +37,7 @@ def delete_discount(db: Session, discount_id: str):
 
 def calculate_product_discount(product, db: Session):
     """
-    Calcule la meilleure réduction applicable à un produit.
+    Calcule la meilleure reduction applicable a un produit.
     Retourne un dict avec : final_price, original_price, discount_percent,
     discount_amount, discount_name, has_discount
     """
