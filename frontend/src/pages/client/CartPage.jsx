@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import { EmptyState } from '../../components/Skeleton';
 import { useAuth } from '../../hooks/useAuth';
-import { IconCart, IconTrash, IconPackage } from '../../components/Icons';
+import { IconCart, IconTrash, IconPackage, IconTag } from '../../components/Icons';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -16,7 +16,7 @@ function getImageUrl(url) {
 }
 
 export default function CartPage() {
-  const [cart, setCart] = useState({ items: [], total: 0, count: 0 });
+  const [cart, setCart] = useState({ items: [], total: 0, count: 0, total_savings: 0 });
   const [loading, setLoading] = useState(true);
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -28,7 +28,12 @@ export default function CartPage() {
 
   const loadCart = () => {
     api.get('/cart')
-      .then(res => setCart(res.data))
+      .then(res => {
+        // Calculer les économies totales si le backend ne les renvoie pas encore
+        const items = res.data.items || [];
+        const totalSavings = items.reduce((sum, item) => sum + (item.discount_amount || 0), 0);
+        setCart({ ...res.data, total_savings: totalSavings });
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   };
@@ -99,21 +104,50 @@ export default function CartPage() {
       <div className="space-y-3 mb-6">
         {cart.items.map(item => {
           const imageUrl = getImageUrl(item.image_url);
+          const hasDiscount = item.has_discount && item.discount_percent > 0;
           return (
             <div key={item.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 md:p-4 flex items-center gap-3 md:gap-4">
               {/* Image */}
-              <div className="w-14 h-14 md:w-16 md:h-16 bg-gray-100 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0">
+              <div className="w-14 h-14 md:w-16 md:h-16 bg-gray-100 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0 relative">
                 {imageUrl ? (
                   <img src={imageUrl} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <IconPackage size={24} />
+                )}
+                {hasDiscount && (
+                  <span className="absolute top-0 left-0 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-br-lg rounded-tl-lg">
+                    -{item.discount_percent}%
+                  </span>
                 )}
               </div>
 
               {/* Infos */}
               <div className="flex-1 min-w-0">
                 <h3 className="font-bold text-sm md:text-base truncate">{item.product_name}</h3>
-                <p className="text-blue-600 font-bold text-sm">{item.unit_price?.toLocaleString()} Ar</p>
+                
+                {/* Prix avec/sans réduction */}
+                <div className="flex items-center gap-2 mt-0.5">
+                  {hasDiscount ? (
+                    <>
+                      <span className="text-blue-600 font-bold text-sm">
+                        {item.unit_price?.toLocaleString()} Ar
+                      </span>
+                      <span className="text-gray-400 text-xs line-through">
+                        {item.original_price?.toLocaleString()} Ar
+                      </span>
+                      {item.discount_name && (
+                        <span className="text-green-600 text-xs flex items-center gap-0.5">
+                          <IconTag size={12} />
+                          {item.discount_name}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-blue-600 font-bold text-sm">
+                      {item.unit_price?.toLocaleString()} Ar
+                    </span>
+                  )}
+                </div>
                 
                 {/* Quantité + prix total sur mobile */}
                 <div className="flex items-center justify-between mt-2 md:hidden">
@@ -122,7 +156,12 @@ export default function CartPage() {
                     <span className="font-bold text-sm w-6 text-center">{item.quantity}</span>
                     <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-7 h-7 rounded-full bg-white border text-sm font-bold">+</button>
                   </div>
-                  <p className="font-bold text-sm">{item.total?.toLocaleString()} Ar</p>
+                  <div className="text-right">
+                    <p className="font-bold text-sm">{item.total?.toLocaleString()} Ar</p>
+                    {hasDiscount && item.discount_amount > 0 && (
+                      <p className="text-green-600 text-xs">Économie: {item.discount_amount?.toLocaleString()} Ar</p>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -134,8 +173,11 @@ export default function CartPage() {
               </div>
 
               {/* Prix desktop */}
-              <div className="hidden md:block text-right w-28">
+              <div className="hidden md:block text-right w-32">
                 <p className="font-bold text-lg">{item.total?.toLocaleString()} Ar</p>
+                {hasDiscount && item.discount_amount > 0 && (
+                  <p className="text-green-600 text-xs">Économie: {item.discount_amount?.toLocaleString()} Ar</p>
+                )}
               </div>
 
               {/* Supprimer */}
@@ -151,13 +193,25 @@ export default function CartPage() {
         })}
       </div>
 
-      {/* Résumé - sticky en bas sur mobile */}
-      <div className="md:sticky md:bottom-0">
+      {/* Récapitulatif */}
+      <div className="grid md:grid-cols-3 gap-4">
+        <div className="md:col-span-2" />
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6">
           <div className="flex justify-between text-sm mb-2">
             <span className="text-gray-500">Sous-total</span>
             <span>{cart.total?.toLocaleString()} Ar</span>
           </div>
+          
+          {cart.total_savings > 0 && (
+            <div className="flex justify-between text-sm mb-2">
+              <span className="text-green-600 flex items-center gap-1">
+                <IconTag size={14} />
+                Économies
+              </span>
+              <span className="text-green-600 font-medium">-{cart.total_savings?.toLocaleString()} Ar</span>
+            </div>
+          )}
+          
           <div className="flex justify-between text-sm mb-2">
             <span className="text-gray-500">Livraison</span>
             <span className="text-green-600 font-medium">Gratuite</span>
