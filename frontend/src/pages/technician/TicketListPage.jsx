@@ -56,6 +56,7 @@ export default function TicketListPage() {
   const [autoScroll, setAutoScroll] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
   const [editingMsgId, setEditingMsgId] = useState(null);
   const [editText, setEditText] = useState('');
   const [showMobileChat, setShowMobileChat] = useState(false);
@@ -134,15 +135,34 @@ export default function TicketListPage() {
     catch (err) { toast.error('Erreur modification'); }
   };
 
-  const handleFileSelect = (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (ev) => setPreview(ev.target.result); reader.readAsDataURL(file); };
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setSelectedFile(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => setPreview(ev.target.result);
+    reader.readAsDataURL(file);
+  };
+
   const uploadPhoto = async () => {
-    const file = fileInputRef.current?.files[0]; if (!file || !selectedTicket) return;
-    setUploading(true); const formData = new FormData(); formData.append('file', file);
+    if (!selectedFile || !selectedTicket) return;
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', selectedFile);
     try {
       await api.post(`/tickets/${selectedTicket.id}/upload`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       if (wsRef.current?.readyState === WebSocket.OPEN) wsRef.current.send(JSON.stringify({ action: 'message', ticket_id: selectedTicket.id }));
-      setPreview(null); fileInputRef.current.value = ''; setAutoScroll(true); loadMessages();
-    } catch (err) { toast.error('Erreur'); } finally { setUploading(false); }
+      setPreview(null);
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      setAutoScroll(true);
+      loadMessages();
+      toast.success('Photo envoyée');
+    } catch (err) {
+      toast.error('Erreur envoi photo');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const assignToMe = async (id) => { await api.put(`/technician/tickets/${id}/assign`); toast.success('Assigné'); loadTickets(); };
@@ -254,7 +274,7 @@ export default function TicketListPage() {
                   })}
                   <div ref={messagesEndRef} />
                 </div>
-                {preview && <div className="px-3 py-2 border-t bg-gray-50 flex items-center gap-2 flex-shrink-0"><img src={preview} alt="" className="h-8 w-8 object-cover rounded" /><button onClick={uploadPhoto} disabled={uploading} className="ml-auto bg-teal-600 text-white px-2 py-1 rounded text-xs">{uploading ? '...' : 'Envoyer'}</button><button onClick={() => { setPreview(null); fileInputRef.current.value = ''; }} className="text-red-400 text-xs">Annuler</button></div>}
+                {preview && <div className="px-3 py-2 border-t bg-gray-50 flex items-center gap-2 flex-shrink-0"><img src={preview} alt="" className="h-8 w-8 object-cover rounded" /><button onClick={uploadPhoto} disabled={uploading} className="ml-auto bg-teal-600 text-white px-2 py-1 rounded text-xs">{uploading ? '...' : 'Envoyer'}</button><button onClick={() => { setPreview(null); setSelectedFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="text-red-400 text-xs">Annuler</button></div>}
                 <div className="p-3 border-t flex gap-2 flex-shrink-0 bg-white">
                   <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileSelect} className="hidden" id="tech-file-upload" />
                   <label htmlFor="tech-file-upload" className="bg-gray-100 hover:bg-gray-200 px-3 py-2 rounded-full cursor-pointer text-sm flex-shrink-0" title="Envoyer une photo">+</label>
@@ -315,7 +335,7 @@ export default function TicketListPage() {
                     })}
                   </div>
                   <div className="p-2 border-t flex gap-2 bg-white flex-shrink-0">
-                    <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileSelect} className="hidden" id="tech-file-upload-mobile" />
+                    <input type="file" accept="image/*" onChange={handleFileSelect} className="hidden" id="tech-file-upload-mobile" />
                     <label htmlFor="tech-file-upload-mobile" className="bg-gray-100 hover:bg-gray-200 px-3 py-2 rounded-full cursor-pointer text-sm flex-shrink-0" title="Photo">+</label>
                     <input placeholder="Réponse..." value={text} onChange={e => setText(e.target.value)} className="flex-1 px-3 py-2 border rounded-full text-sm" />
                     <button onClick={send} className="bg-teal-600 text-white px-4 py-2 rounded-full font-semibold text-sm">Envoyer</button>
